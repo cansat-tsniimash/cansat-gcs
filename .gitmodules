@@ -1,0 +1,3 @@
+[submodule "shared/mavlink-its"]
+	path = shared/mavlink-its
+	url = git@github.com:cansat-tsniimash/mavlink.git
