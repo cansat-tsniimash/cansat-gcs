@@ -1,0 +1,12 @@
+git-filter-repo --path src/ground --path doc/ --path construction/3Dmodel_Ground_station/ --path construction/gcs_enkoder-kron.stl --path construction/.gitignore --path construction/CanCubeSat-for-GKS --path src/common/ccsds-uslp-cpp --path src/common/drivers/sx126x
+git-filter-repo --path src/ground/rpi/ccsds-link/server-radio/libs/sx126x/remote --invert-paths
+git-filter-repo --path src/ground/rpi/ccsds-link/server-uslp/libs/ccsds-uslp-cpp/remote --invert-paths
+git-filter-repo --path-rename src/common/drivers/sx126x:src/ground/rpi/ccsds-link/server-radio/libs/sx126x/remote
+git-filter-repo --path-rename src/common/ccsds-uslp-cpp:src/ground/rpi/ccsds-link/server-uslp/libs/ccsds-uslp-cpp/remote
+git-filter-repo --path-rename src/ground/laptop/:src/laptop/
+git-filter-repo --path-rename src/ground/rpi/:src/rpi/
+git-filter-repo --path-rename src/ground/sdr/:src/sdr/
+git-filter-repo --path-rename src/ground/utility/:src/utility/
+git-filter-repo --path-rename doc/topics.md:temp/topics.md
+git-filter-repo --path doc/ --invert-paths
+git-filter-repo --path-rename temp/:doc/
