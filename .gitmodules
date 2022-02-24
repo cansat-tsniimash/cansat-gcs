@@ -1,3 +1,6 @@
 [submodule "shared/mavlink-its"]
 	path = shared/mavlink-its
 	url = git@github.com:cansat-tsniimash/mavlink.git
+[submodule "shared/ccsds"]
+	path = shared/ccsds
+	url = git@github.com:cansat-tsniimash/ccsds.git
