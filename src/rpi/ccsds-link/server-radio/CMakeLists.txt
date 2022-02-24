@@ -6,10 +6,6 @@ project(its-server-radio
 )
 
 
-add_subdirectory(libs/log.c)
-add_subdirectory(libs/jsmin)
-
-
 add_executable(server-radio
 	src/main.c
 	src/server.h
@@ -19,11 +15,13 @@ add_executable(server-radio
 	src/server-config.h
 	src/server-config.c
 
-	libs/sx126x/inc/sx126x_board_rpi.h
-	libs/sx126x/src/sx126x_board_rpi.c
+	src/sx126x_board_rpi.h
+	src/sx126x_board_rpi.c
 )
 
+
 target_include_directories(server-radio PRIVATE libs/sx126x/inc/)
+
 
 target_link_libraries(server-radio
 PRIVATE

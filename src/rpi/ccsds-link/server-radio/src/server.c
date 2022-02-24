@@ -12,7 +12,7 @@
 #include <zmq.h>
 #include <log.h>
 
-#include <sx126x_board_rpi.h>
+#include "sx126x_board_rpi.h"
 
 
 // Удобный шорткат для получения текущей метки времениs

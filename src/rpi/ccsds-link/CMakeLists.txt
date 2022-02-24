@@ -6,6 +6,9 @@ project(its-radio-link
 )
 
 
+
+add_subdirectory(./libs/log.c libc/lig.c)
+add_subdirectory(./libs/jsmin libc/jsmin)
 add_subdirectory(../../../shared/sx126x/sx126x libs/sx126x)
 add_subdirectory(../../../shared/ccsds/ccsds-uslp-cpp libs/ccsds-uslp-cpp)
 add_subdirectory(./server-radio server-radio)

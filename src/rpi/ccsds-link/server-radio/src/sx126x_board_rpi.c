@@ -1,4 +1,4 @@
-#include <sx126x_board_rpi.h>
+#include "sx126x_board_rpi.h"
 
 #include <sys/ioctl.h>
 #include <linux/spi/spidev.h>
