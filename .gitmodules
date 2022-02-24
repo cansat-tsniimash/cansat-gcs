@@ -4,3 +4,6 @@
 [submodule "shared/ccsds"]
 	path = shared/ccsds
 	url = git@github.com:cansat-tsniimash/ccsds.git
+[submodule "shared/sx126x"]
+	path = shared/sx126x
+	url = git@github.com:cansat-tsniimash/sx126x.git
