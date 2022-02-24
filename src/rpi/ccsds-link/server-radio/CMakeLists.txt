@@ -2,31 +2,32 @@ cmake_minimum_required(VERSION 3.16)
 
 
 project(its-server-radio
-LANGUAGES
-	C
-)
-
-set(CMAKE_CXX_STANDARD 17)
-set(_src_dir ${CMAKE_CURRENT_LIST_DIR}/src)
-
-add_executable(server-radio
-	${_src_dir}/main.c
-	${_src_dir}/server.h
-	${_src_dir}/server.c
-	${_src_dir}/server-zmq.h
-	${_src_dir}/server-zmq.c
-	${_src_dir}/server-config.h
-	${_src_dir}/server-config.c
+	LANGUAGES C
 )
 
 
-add_subdirectory(libs/sx126x)
 add_subdirectory(libs/log.c)
 add_subdirectory(libs/jsmin)
 
+
+add_executable(server-radio
+	src/main.c
+	src/server.h
+	src/server.c
+	src/server-zmq.h
+	src/server-zmq.c
+	src/server-config.h
+	src/server-config.c
+
+	libs/sx126x/inc/sx126x_board_rpi.h
+	libs/sx126x/src/sx126x_board_rpi.c
+)
+
+target_include_directories(server-radio PRIVATE libs/sx126x/inc/)
+
 target_link_libraries(server-radio
 PRIVATE
-	sx126x
+	sx126x::sx126x
 	logc
 	jsmin
 	gpiod
