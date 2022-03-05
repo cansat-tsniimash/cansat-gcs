@@ -17,17 +17,20 @@ add_executable(server-radio
 
 	src/sx126x_board_rpi.h
 	src/sx126x_board_rpi.c
+	
+	libs/jsmin.h
+	libs/log.c
+	libs/log.h
 )
 
 
-target_include_directories(server-radio PRIVATE libs/sx126x/inc/)
+target_include_directories(server-radio PRIVATE libs)
+target_compile_definitions(server-radio PRIVATE LOG_USE_COLOR)
 
 
 target_link_libraries(server-radio
 PRIVATE
 	sx126x::sx126x
-	logc
-	jsmin
 	gpiod
 	zmq
 )
