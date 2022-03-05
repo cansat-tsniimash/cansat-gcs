@@ -12,8 +12,8 @@
 #include "server.h"
 
 
-#define ITS_PUB_ENDPOINT_KEY "ITS_GBUS_BSCP_ENDPOINT"
-#define ITS_SUB_ENDPOINT_KEY "ITS_GBUS_BPCS_ENDPOINT"
+#define ITS_BSCP_ENDPOINT_KEY "ITS_GBUS_BSCP_ENDPOINT"
+#define ITS_BPCS_ENDPOINT_KEY "ITS_GBUS_BPCS_ENDPOINT"
 
 #define ITS_GBUS_TOPIC_UPLINK_FRAME "radio.uplink_frame"
 #define ITS_GBUS_TOPIC_PA_POWER "radio.pa_power_request"
@@ -182,22 +182,22 @@ int zserver_init(zserver_t * zserver)
 {
 	int rc;
 
-	const char * pub_ep = getenv(ITS_PUB_ENDPOINT_KEY);
+	const char * pub_ep = getenv(ITS_BSCP_ENDPOINT_KEY);
 	if (!pub_ep)
 	{
 		log_error("unable to get value of pub endpoint from "
-				ITS_PUB_ENDPOINT_KEY
+				ITS_BSCP_ENDPOINT_KEY
 				" envvar: %d: %s",
 				errno, strerror(errno)
 		);
 		return -1;
 	}
 
-	const char * sub_ep = getenv(ITS_SUB_ENDPOINT_KEY);
+	const char * sub_ep = getenv(ITS_BPCS_ENDPOINT_KEY);
 	if (!sub_ep)
 	{
 		log_error("unable to get value of sub endpoint from "
-				ITS_SUB_ENDPOINT_KEY
+				ITS_BPCS_ENDPOINT_KEY
 				" envvar: %d: %s",
 				errno, strerror(errno)
 		);
