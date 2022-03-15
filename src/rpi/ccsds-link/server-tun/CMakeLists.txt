@@ -33,5 +33,4 @@ PROPERTIES
 target_link_libraries(server-tun
 PRIVATE
 	zmq
-	Threads::Threads # логуру хочет так
 )

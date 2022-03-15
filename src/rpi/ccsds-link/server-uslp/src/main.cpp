@@ -18,9 +18,6 @@
 #include <ccsds/uslp/map/map_access_acceptor.hpp>
 
 
-#include "json.hpp"
-
-
 #define RADIO_FRAME_SIZE (200)
 
 

@@ -9,6 +9,9 @@
 #define ITS_BSCP_ENDPOINT_KEY "ITS_GBUS_BSCP_ENDPOINT"
 #define ITS_BPCS_ENDPOINT_KEY "ITS_GBUS_BPCS_ENDPOINT"
 
+#define ITS_TUN_UPLINK_PACKET_TOPIC "tun.uplink_packet"
+#define ITS_TUN_DOWNLINK_PACKET_TOPIC "tun.downlink_packet"
+
 
 
 zmq_server::zmq_server()
@@ -98,6 +101,37 @@ void zmq_server::open(const std::string & bpcs_endpoint, const std::string & bsc
 	_bscp_socket = zmq::socket_t(*_ctx, ZMQ_PUB);
 	LOG_S(INFO) << "connecting BSCP socket to " << bscp_endpoint;
 	_bscp_socket.connect(bscp_endpoint.c_str());
+
+	// Подписываемся на интересное нам сообщение
+	subscribe(ITS_TUN_DOWNLINK_PACKET_TOPIC);
+}
+
+
+void zmq_server::close()
+{
+	_bpcs_socket.close();
+	_bscp_socket.close();
+}
+
+
+void zmq_server::pop_downlink_packet(downlink_packet packet)
+{
+	zmq::message_t topic;
+	zmq::message_t meta;
+	zmq::message_t data;
+
+	auto rv = _bpcs_socket.recv(topic);
+	if (topic.more())
+	{}
+
+	rv = _bpcs_socket.recv(meta, zmq::recv_flags::dontwait);
+	rv = _bpcs_socket.recv(data, zmq::recv_flags::dontwait);
+}
+
+
+void zmq_server::push_uplink_packet(uplink_packet & packet)
+{
+
 }
 
 
@@ -112,11 +146,4 @@ void zmq_server::unsubscribe(const std::string & topic)
 {
 	LOG_S(INFO) << "unsubscribing from \"" << topic << "\"";
 	_bpcs_socket.set(zmq::sockopt::unsubscribe, topic);
-}
-
-
-void zmq_server::close()
-{
-	_bpcs_socket.close();
-	_bscp_socket.close();
 }
