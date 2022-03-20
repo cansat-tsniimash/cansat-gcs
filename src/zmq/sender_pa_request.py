@@ -55,7 +55,7 @@ def main(args):
 	_log.info("sending request for power '%s'" % power)
 	socket.send_multipart([
 		"radio.pa_power_request".encode("utf-8"),
-		json.dumps({"pa_power": 10}).encode("utf-8")
+		json.dumps({"pa_power": power}).encode("utf-8")
 	])
 
 	_log.info("done")
