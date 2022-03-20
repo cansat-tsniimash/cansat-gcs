@@ -4,8 +4,19 @@
 #include "log.hpp"
 #include "json.hpp"
 
+#include <thread>
+
 #include <ccsds/uslp/events.hpp>
 #include <ccsds/epp/epp_header.hpp>
+
+#define ITS_GBUS_TOPIC_DOWNLINK_SDU "uslp.downlink_sdu"
+#define ITS_GBUS_TOPIC_UPLINK_SDU_REQUEST "uslp.uplink_sdu_request"
+#define ITS_GGUS_TOPIC_UPLINK_SDU_EVENT "uslp.uplink_sdu_event"
+
+#define ITS_GBUS_TOPIC_UPLINK_FRAME "radio.uplink_frame"
+#define ITS_GBUS_TOPIC_DOWNLINK_FRAME "radio.downlink_frame"
+#define ITS_GBUS_TOPIC_UPLINK_STATE "radio.uplink_state"
+
 
 namespace nlohmann {
 
@@ -38,17 +49,94 @@ static std::string qos_to_string(ccsds::uslp::qos_t qos)
 		return "sequence_controlled";
 	else
 	{
-		LOG_S(ERROR) << "invalid qos value " << static_cast<int>(qos);
-		throw std::invalid_argument("invalid qos value");
+		LOG_S(ERROR) << "invalid qos enum value " << static_cast<int>(qos);
+		throw std::invalid_argument("invalid qos enum value");
 	}
 }
 
 
-void bus_io::send_message(zmq::socket_t & socket, const bus_output_sdu_accepted & message)
+static ccsds::uslp::qos_t qos_from_string(const std::string & string)
+{
+	if (string == "expedited")
+		return ccsds::uslp::qos_t::EXPEDITED;
+	else if (string == "sequence_controlled")
+		return ccsds::uslp::qos_t::SEQUENCE_CONTROLLED;
+	else
+	{
+		LOG_S(ERROR) << "invalid qos string value \"" << string << "\"";
+		throw std::invalid_argument("invalid qos string value");
+	}
+}
+
+
+static nlohmann::json _load_json(const zmq::message_t & message)
+{
+	if (0 == message.size())
+		return nlohmann::json();
+
+	const std::string raw_string(reinterpret_cast<const char*>(message.data()), message.size());
+	nlohmann::json retval = nlohmann::json::parse(raw_string);
+
+	return retval;
+}
+
+
+static void _flush_more(zmq::socket_t & socket)
+{
+	zmq::message_t skipper;
+	do
+	{
+		auto result = socket.recv(skipper);
+		LOG_S(WARNING) << "there is unexpected more data";
+	} while (skipper.more());
+}
+
+
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+
+bus_io::bus_io(zmq::context_t & ctx)
+	: _ctx(ctx), _pub_socket(), _sub_socket()
+{
+}
+
+
+void bus_io::connect_bpcs(const std::string & endpoint)
+{
+	LOG_S(INFO) << "connection BPCS to \"" << endpoint << "\"";
+
+	_sub_socket = zmq::socket_t(_ctx, zmq::socket_type::sub);
+	_sub_socket.connect(endpoint);
+
+	LOG_S(INFO) << "subscribing to topics";
+	_sub_socket.set(zmq::sockopt::subscribe, ITS_GBUS_TOPIC_UPLINK_SDU_REQUEST);
+	_sub_socket.set(zmq::sockopt::subscribe, ITS_GBUS_TOPIC_DOWNLINK_FRAME);
+	_sub_socket.set(zmq::sockopt::subscribe, ITS_GBUS_TOPIC_UPLINK_STATE);
+}
+
+
+void bus_io::connect_bscp(const std::string & endpoint)
+{
+	LOG_S(INFO) << "connection BSCP to \"" << endpoint << "\"";
+
+	_pub_socket = zmq::socket_t(_ctx, zmq::socket_type::pub);
+	_pub_socket.connect(endpoint);
+}
+
+
+void bus_io::close()
+{
+	_pub_socket.close();
+	_sub_socket.close();
+}
+
+
+void bus_io::send_message(const bus_output_sdu_downlink & message)
 {
 	LOG_S(INFO+2) << "sending 'SDU accepted' bus message";
 
-	const std::string topic = "uslp.sdu_accepted";
+	const std::string topic = ITS_GBUS_TOPIC_DOWNLINK_SDU;
 
 	nlohmann::json j;
 	j["sc_id"] = message.gmapid.mcid().sc_id();
@@ -78,22 +166,22 @@ void bus_io::send_message(zmq::socket_t & socket, const bus_output_sdu_accepted 
 		std::advance(data_begin, header.size());
 	}
 
-	std::string metadata = nlohmann::to_string(j);
+	std::string metadata = j.dump();
 
 	std::vector<uint8_t> data(data_begin, data_end);
 
 	// Фигачим в сокет!
-	socket.send(zmq::const_buffer(topic.data(), topic.size()), zmq::send_flags::sndmore);
-	socket.send(zmq::const_buffer(metadata.data(), metadata.size()), zmq::send_flags::sndmore);
-	socket.send(zmq::const_buffer(data.data(), data.size()));
+	_pub_socket.send(zmq::const_buffer(topic.data(), topic.size()), zmq::send_flags::sndmore);
+	_pub_socket.send(zmq::const_buffer(metadata.data(), metadata.size()), zmq::send_flags::sndmore);
+	_pub_socket.send(zmq::const_buffer(data.data(), data.size()));
 }
 
 
-void bus_io::send_message(zmq::socket_t & socket, const bus_output_sdu_emitted & message)
+void bus_io::send_message(const bus_output_sdu_event & message)
 {
 	LOG_S(INFO+2) << "sending 'SDU emitted' bus message";
 
-	const std::string topic = "uslp.sdu_emitted";
+	const std::string topic = ITS_GGUS_TOPIC_UPLINK_SDU_EVENT;
 
 	nlohmann::json j;
 
@@ -107,17 +195,178 @@ void bus_io::send_message(zmq::socket_t & socket, const bus_output_sdu_emitted &
 	cookie["is_final_part"] = message.cookie.final;
 	j["cookie"] = std::move(cookie);
 
-	const std::string metadata = nlohmann::to_string(j);
+	const std::string metadata = j.dump();
 	// данных тут нет.
 
 	// В сокет!
-	socket.send(zmq::const_buffer(topic.data(), topic.size()), zmq::send_flags::sndmore);
-	socket.send(zmq::const_buffer(metadata.data(), metadata.size()));
+	_pub_socket.send(zmq::const_buffer(topic.data(), topic.size()), zmq::send_flags::sndmore);
+	_pub_socket.send(zmq::const_buffer(metadata.data(), metadata.size()));
 }
 
 
-std::unique_ptr<bus_input_message> bus_io::recv_message(zmq::socket_t & socket)
+std::unique_ptr<bus_input_message> bus_io::recv_message()
 {
+	zmq::message_t topic_msg;
+	auto result = _sub_socket.recv(topic_msg);
+
+	if (!topic_msg.more())
+	{
+		LOG_S(ERROR) << "there is no zmq message parts after topic";
+		throw std::runtime_error("there is no message parts after topic");
+	}
+
+	const std::string topic(reinterpret_cast<char*>(topic_msg.data()), topic_msg.size());
+	if (topic == ITS_GBUS_TOPIC_UPLINK_SDU_REQUEST)
+	{
+		LOG_S(INFO + 2) << "got an uplink sdu request message";
+		return recv_sdu_uplink_message();
+	}
+	else if (topic == ITS_GBUS_TOPIC_DOWNLINK_FRAME)
+	{
+		LOG_S(INFO + 2) << "got a downlink frame message";
+		return recv_downlink_frame_message();
+	}
+	else
+	{
+		LOG_S(ERROR) << "unknown topic received";
+		// сливаем все части этого сообщения
+		while(topic_msg.more())
+		{
+			auto result = _sub_socket.recv(topic_msg);
+		}
+	}
+
 	return nullptr;
+}
+
+
+bool bus_io::poll_sub_socket(std::chrono::milliseconds timeout)
+{
+	zmq::pollitem_t items[] = {
+			{ _sub_socket, 0, ZMQ_POLLIN, 0 }
+	};
+
+	int rv = zmq::poll(items, sizeof(items)/sizeof(*items), timeout);
+	return rv > 0;
+}
+
+
+std::unique_ptr<bus_input_sdu_uplink> bus_io::recv_sdu_uplink_message()
+{
+	zmq::message_t metadata_msg;
+	auto result = _sub_socket.recv(metadata_msg);
+
+	// выграбаем собственно данные
+	if (!metadata_msg.more())
+	{
+		LOG_S(ERROR) << "there is no 'more' messages for sdu uplink zmq message after metadata";
+		throw std::runtime_error("empty uplink sdu request");
+	}
+
+	zmq::message_t payload_message;
+	result = _sub_socket.recv(payload_message);
+
+	if (payload_message.more())
+		_flush_more(_sub_socket);
+
+	// разгребаем выгребенное
+	const nlohmann::json j = _load_json(metadata_msg);
+	const int sc_id = j["sc_id"].get<int>();
+	const int vchannel_id = j["vchannel_id"].get<int>();
+	const int map_id = j["map_id"].get<int>();
+	ccsds::uslp::qos_t qos = qos_from_string(j["qos"].get<std::string>());
+
+	// Строим само сообщение
+	auto retval = std::make_unique<bus_input_sdu_uplink>();
+
+	retval->gmapid.sc_id(sc_id);
+	retval->gmapid.vchannel_id(vchannel_id);
+	retval->gmapid.map_id(map_id);
+	retval->qos = qos;
+
+	const auto * data_begin = reinterpret_cast<uint8_t*>(payload_message.data());
+	const auto * data_end = data_begin + payload_message.size();
+	retval->_data.assign(data_begin, data_end);
+
+	return retval;
+}
+
+
+std::unique_ptr<bus_input_radio_downlink_frame> bus_io::recv_downlink_frame_message()
+{
+	// Выгребаем
+
+	zmq::message_t metadata_msg;
+	auto result = _sub_socket.recv(metadata_msg);
+
+	if (!metadata_msg.more())
+	{
+		LOG_S(ERROR) << "there is no 'more' messages for radio downlink frame message after metadata";
+		throw std::runtime_error("empty radio downlink frame");
+	}
+
+	zmq::message_t payload_msg;
+	result = _sub_socket.recv(payload_msg);
+
+	if (payload_msg.more())
+		_flush_more(_sub_socket);
+
+	// Разгребаем
+
+	const auto j = _load_json(metadata_msg);
+	const bool checksum_valid = j["checksum_valid"].get<bool>();
+	uint64_t cookie = j["cookie"].get<uint64_t>();
+	uint64_t frame_no = j["frame_no"].get<uint64_t>();
+
+	const auto * data_begin = reinterpret_cast<uint8_t*>(payload_msg.data());
+	const auto * data_end = data_begin + payload_msg.size();
+
+	std::vector<uint8_t> data(data_begin, data_end);
+
+	// Формируем сообщение
+
+	auto retval = std::make_unique<bus_input_radio_downlink_frame>();
+	retval->checksum_valid = checksum_valid;
+	retval->frame_no = frame_no;
+	retval->data = std::move(data);
+
+	return retval;
+}
+
+
+std::unique_ptr<bus_input_radio_uplink_state> bus_io::recv_radio_uplink_state_message()
+{
+	// выгребаем
+	zmq::message_t metadata_msg;
+	auto result = _sub_socket.recv(metadata_msg);
+
+	if (metadata_msg.more())
+		_flush_more(_sub_socket);
+
+	// разгребаем
+
+	const auto j = _load_json(metadata_msg);
+	auto get_optional_cookie = [&j](const std::string & key) -> std::optional<uint64_t>
+	{
+		const auto & node = j[key];
+		if (node.is_null())
+			return {};
+		else
+			return node.get<uint64_t>();
+	};
+
+	const auto cookie_in_wait = get_optional_cookie("cookie_in_wait");
+	const auto cookie_in_progress = get_optional_cookie("cookie_in_progress");
+	const auto cookie_sent = get_optional_cookie("cookie_sent");
+	const auto cookie_dropped = get_optional_cookie("cookie_dropped");
+
+	// собираем объект
+	auto retval = std::make_unique<bus_input_radio_uplink_state>();
+	retval->cookie_in_wait = cookie_in_wait;
+	retval->cookie_in_progress = cookie_in_progress;
+	retval->cookie_done = cookie_sent;
+	retval->cookie_failed = cookie_dropped;
+
+	return retval;
 }
 
