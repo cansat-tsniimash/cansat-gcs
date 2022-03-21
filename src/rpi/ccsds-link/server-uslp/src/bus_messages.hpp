@@ -48,6 +48,8 @@ public:
 	ccsds::uslp::gmapid_t gmapid;
 	//! Желаемое качество отправки пакета
 	ccsds::uslp::qos_t qos = ccsds::uslp::qos_t::EXPEDITED;
+	//! Кука сообщения
+	ccsds::uslp::payload_cookie_t cookie;
 	//! Данные сообщения
 	std::vector<uint8_t> _data;
 };

@@ -9,6 +9,9 @@
 #include "bus_messages.hpp"
 
 
+struct preparsed_message;
+
+
 class bus_io
 {
 public:
@@ -29,9 +32,15 @@ public:
 	bool poll_sub_socket(std::chrono::milliseconds timeout);
 
 private:
-	std::unique_ptr<bus_input_sdu_uplink> recv_sdu_uplink_message();
-	std::unique_ptr<bus_input_radio_downlink_frame> recv_downlink_frame_message();
-	std::unique_ptr<bus_input_radio_uplink_state> recv_radio_uplink_state_message();
+	std::unique_ptr<bus_input_sdu_uplink> parse_sdu_uplink_request_message(
+			const preparsed_message & message
+	);
+	std::unique_ptr<bus_input_radio_downlink_frame> parse_downlink_frame_message(
+			const preparsed_message & message
+	);
+	std::unique_ptr<bus_input_radio_uplink_state> parse_radio_uplink_state_message(
+			const preparsed_message & message
+	);
 
 	zmq::context_t & _ctx;
 	zmq::socket_t _sub_socket;

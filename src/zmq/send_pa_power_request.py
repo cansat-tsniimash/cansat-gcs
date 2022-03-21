@@ -17,7 +17,7 @@ BUS_ENDPOINT_ENVVAR = "ITS_GBUS_BSCP_ENDPOINT"
 def main(args):
 	logging.basicConfig(level=logging.INFO, format='%(asctime)-15s %(levelname)s %(message)s')
 
-	parser = argparse.ArgumentParser("Pa Request Updater", add_help=True)
+	parser = argparse.ArgumentParser("PA power request sender", add_help=True)
 	parser.add_argument(
 		'--bus-endpoint', nargs='?', type=str, help='zmq bus bscp endpoint',
 		required=False, dest='bus_endpoint'

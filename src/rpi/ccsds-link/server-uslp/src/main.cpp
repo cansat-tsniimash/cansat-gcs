@@ -64,19 +64,8 @@ static config get_config(int argc, char ** argv)
 }
 
 
-int main(int argc, char ** argv)
+static int real_main(int argc, char ** argv)
 {
-	loguru::g_preamble_thread = false;
-	//loguru::g_preamble_file = false;
-	//loguru::g_preamble_verbose = false;
-	loguru::g_preamble_time = false;
-	loguru::g_preamble_date = false;
-	loguru::g_preamble_uptime = false;
-	loguru::g_colorlogtostderr = true;
-
-	loguru::init(argc, argv);
-
-
 	config c;
 	try
 	{
@@ -108,8 +97,11 @@ int main(int argc, char ** argv)
 
 		LOG_S(INFO+2) << "entering poll cycle";
 		const auto poll_timeout = std::chrono::milliseconds(1000);
-		bool got_messages = io.poll_sub_socket(poll_timeout);
-		auto message_ptr = io.recv_message();
+		const bool got_messages = io.poll_sub_socket(poll_timeout);
+		if (!got_messages)
+			continue;
+
+		const auto message_ptr = io.recv_message();
 		LOG_S(INFO+2) << "got bus message " << to_string(message_ptr->kind);
 	}
 
@@ -119,5 +111,34 @@ int main(int argc, char ** argv)
 	LOG_S(INFO) << "termination complete";
 
 	return EXIT_SUCCESS;
+}
+
+
+int main(int argc, char ** argv)
+{
+	loguru::g_preamble_thread = false;
+	//loguru::g_preamble_file = false;
+	//loguru::g_preamble_verbose = false;
+	loguru::g_preamble_time = false;
+	loguru::g_preamble_date = false;
+	loguru::g_preamble_uptime = false;
+	loguru::g_colorlogtostderr = true;
+
+	loguru::init(argc, argv);
+
+	int rc = EXIT_SUCCESS;
+	try
+	{
+		rc = real_main(argc, argv);
+	}
+	catch (std::exception & e)
+	{
+		LOG_S(ERROR) << "failure! " << e.what();
+		// Бросаем дальше, чтобы увидеть стектрейс от логуру
+		throw;
+	}
+
+	LOG_S(INFO) << "shutting down gracefully";
+	return rc;
 }
 
