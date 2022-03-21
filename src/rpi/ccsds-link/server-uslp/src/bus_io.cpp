@@ -326,7 +326,7 @@ bool bus_io::poll_sub_socket(std::chrono::milliseconds timeout)
 }
 
 
-std::unique_ptr<bus_input_sdu_uplink>
+std::unique_ptr<bus_input_sdu_uplink_request>
 bus_io::parse_sdu_uplink_request_message(
 		const preparsed_message & message
 )
@@ -340,7 +340,7 @@ bus_io::parse_sdu_uplink_request_message(
 	const auto cookie = _get_or_die<ccsds::uslp::payload_cookie_t>(j, "cookie");
 
 	// Строим само сообщение
-	auto retval = std::make_unique<bus_input_sdu_uplink>();
+	auto retval = std::make_unique<bus_input_sdu_uplink_request>();
 
 	retval->gmapid.sc_id(sc_id);
 	retval->gmapid.vchannel_id(vchannel_id);

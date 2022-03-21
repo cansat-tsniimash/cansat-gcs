@@ -32,7 +32,7 @@ public:
 	bool poll_sub_socket(std::chrono::milliseconds timeout);
 
 private:
-	std::unique_ptr<bus_input_sdu_uplink> parse_sdu_uplink_request_message(
+	std::unique_ptr<bus_input_sdu_uplink_request> parse_sdu_uplink_request_message(
 			const preparsed_message & message
 	);
 	std::unique_ptr<bus_input_radio_downlink_frame> parse_downlink_frame_message(

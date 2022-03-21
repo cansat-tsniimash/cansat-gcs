@@ -19,9 +19,9 @@ public:
 	//! Тип сообщения
 	enum class kind_t
 	{
-		sdu_uplink,			//!< клиенты хотят что-то отправить
-		frame_downlink,		//!< радио прислало новый фрейм
-		radio_tx_state,		//!< Состояние отправного буфера радио
+		sdu_uplink_request,		//!< клиенты хотят что-то отправить
+		radio_frame_downlink,	//!< радио прислало новый фрейм
+		radio_tx_state,			//!< cостояние отправного буфера радио
 	};
 
 protected:
@@ -39,10 +39,13 @@ std::string to_string(bus_input_message::kind_t kind);
 
 //! Сообщение с данными для отправки в USLP стек
 /*! для mapa данные отправлются как есть, для mapp заворачиваются в epp пакет */
-class bus_input_sdu_uplink: public bus_input_message
+class bus_input_sdu_uplink_request: public bus_input_message
 {
 public:
-	bus_input_sdu_uplink(): bus_input_message(kind_t::sdu_uplink) {}
+	bus_input_sdu_uplink_request()
+		: bus_input_message(kind_t::sdu_uplink_request),
+		  cookie()
+	{}
 
 	//! Идентификатор канала по которому сообщение должно быть отправлено
 	ccsds::uslp::gmapid_t gmapid;
@@ -77,7 +80,7 @@ public:
 class bus_input_radio_downlink_frame: public bus_input_message
 {
 public:
-	bus_input_radio_downlink_frame(): bus_input_message(kind_t::frame_downlink) {}
+	bus_input_radio_downlink_frame(): bus_input_message(kind_t::radio_frame_downlink) {}
 
 	//! Правильная ли у этого фрейма контрольная сумма уровня радио
 	bool checksum_valid = false;
@@ -100,8 +103,8 @@ public:
 	//! Тип сообщения
 	enum class kind_t
 	{
-		sdu_emitted,	//!< SDU было "выпущено" стеком в радио-сервер
-		sdu_downlink,	//!< SDU было принято стеком
+		sdu_uplink_event,			//!< событие с отправляемым SDU
+		sdu_downlink_arrived,		//!< SDU было принято стеком
 	};
 
 protected:
@@ -122,12 +125,12 @@ std::string to_string(bus_output_message::kind_t kind);
 class bus_output_sdu_event: public bus_output_message
 {
 public:
-	bus_output_sdu_event(): bus_output_message(kind_t::sdu_emitted) {}
+	bus_output_sdu_event(): bus_output_message(kind_t::sdu_uplink_event) {}
 
 	//! идентификатор канала
 	ccsds::uslp::gmapid_t gmapid;
 	//! cookie полезной нагрузки (и его доп параметры)
-	ccsds::uslp::payload_cookie_ref cookie;
+	ccsds::uslp::payload_part_cookie_t cookie;
 };
 
 
@@ -135,7 +138,7 @@ public:
 class bus_output_sdu_downlink: public bus_output_message
 {
 public:
-	bus_output_sdu_downlink(): bus_output_message(kind_t::sdu_downlink) {}
+	bus_output_sdu_downlink(): bus_output_message(kind_t::sdu_downlink_arrived) {}
 
 	//! идентификатор канала
 	ccsds::uslp::gmapid_t gmapid;

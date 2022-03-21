@@ -1,5 +1,5 @@
 launch --env ITS_GBUS_BPCS_ENDPOINT=tcp://localhost:7778 --env ITS_GBUS_BSCP_ENDPOINT=tcp://localhost:7777 --hold "./rpi/ccsds-link-build/debug/server-uslp/server-uslp" "-v 3"
 
-launch --env ITS_GBUS_BPCS_ENDPOINT=tcp://localhost:7778 --env ITS_GBUS_BSCP_ENDPOINT=tcp://localhost:7777 --hold python3 "./zmq/broker.py"
+launch --env ITS_GBUS_BPCS_ENDPOINT=tcp://localhost:7778 --env ITS_GBUS_BSCP_ENDPOINT=tcp://localhost:7777 --hold python3 "./zmq/broker.py" "--no-log"
 
 launch --env ITS_GBUS_BPCS_ENDPOINT=tcp://localhost:7778 --env ITS_GBUS_BSCP_ENDPOINT=tcp://localhost:7777 --cwd ./zmq /usr/bin/bash
