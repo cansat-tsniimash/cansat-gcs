@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 
-import zmq
+import sys
 import os
-import json
 import enum
 
+import zmq
 
-TX_STATE_TOPIC = b"radio.uplink_state"
+from senders_common import SenderCore
+
+
 FRAME_SIZE = 200
 
 
@@ -21,19 +23,16 @@ def send_payload(socket, cookie: int, payload: bytes):
     socket.send_multipart(parts)
 
 
-def main():
-    ctx = zmq.Context()
-    sub_socket = ctx.socket(zmq.SUB)
-    sub_ep = os.environ["ITS_GBUS_BPCS_ENDPOINT"]
-    print("connecting sub to %s" % sub_ep)
-    sub_socket.connect(sub_ep)
-    sub_socket.setsockopt(zmq.SUBSCRIBE, TX_STATE_TOPIC)
+def main(argv):
+    core = SenderCore("uplink frame test sender sequencer")
+    core.setup_log()
+    core.parse_args(argv)
+    core.connect_sockets()
 
-    pub_ep = os.environ["ITS_GBUS_BSCP_ENDPOINT"]
-    print("connecting pub to %s" % pub_ep)
-    pub_socket = ctx.socket(zmq.PUB)
-    pub_socket.connect(pub_ep)
+    sub_socket = core.sub_socket
+    pub_socket = core.pub_socket
 
+    sub_socket.setsockopt(zmq.SUBSCRIBE, b"radio.uplink_state")
 
     cookie = 0
     serial = 0
@@ -64,9 +63,9 @@ def main():
         print("sending packet: %s" % cookie)
         send_payload(pub_socket, cookie, packet)
 
-    del ctx
+    core.close()
     return 0
 
-
 if __name__ == "__main__":
-    exit(main())
+    argv = sys.argv[1:]
+    exit(main(argv))
