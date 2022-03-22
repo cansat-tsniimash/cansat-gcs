@@ -8,8 +8,8 @@ std::string to_string(bus_input_message::kind_t kind)
 	case bus_input_message::kind_t::sdu_uplink_request:
 		return "sdu_uplink_request";
 
-	case bus_input_message::kind_t::radio_tx_state:
-		return "radio_tx_state";
+	case bus_input_message::kind_t::radio_uplink_state:
+		return "radio_uplink_state";
 
 	case bus_input_message::kind_t::radio_frame_downlink:
 		return "radio_frame_downlink";

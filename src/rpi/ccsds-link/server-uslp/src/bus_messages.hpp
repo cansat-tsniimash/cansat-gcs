@@ -21,7 +21,7 @@ public:
 	{
 		sdu_uplink_request,		//!< клиенты хотят что-то отправить
 		radio_frame_downlink,	//!< радио прислало новый фрейм
-		radio_tx_state,			//!< cостояние отправного буфера радио
+		radio_uplink_state,		//!< cостояние отправного буфера радио
 	};
 
 protected:
@@ -39,13 +39,10 @@ std::string to_string(bus_input_message::kind_t kind);
 
 //! Сообщение с данными для отправки в USLP стек
 /*! для mapa данные отправлются как есть, для mapp заворачиваются в epp пакет */
-class bus_input_sdu_uplink_request: public bus_input_message
+class sdu_uplink_request: public bus_input_message
 {
 public:
-	bus_input_sdu_uplink_request()
-		: bus_input_message(kind_t::sdu_uplink_request),
-		  cookie()
-	{}
+	sdu_uplink_request(): bus_input_message(kind_t::sdu_uplink_request) {} // @suppress("Class members should be properly initialized")
 
 	//! Идентификатор канала по которому сообщение должно быть отправлено
 	ccsds::uslp::gmapid_t gmapid;
@@ -54,15 +51,15 @@ public:
 	//! Кука сообщения
 	ccsds::uslp::payload_cookie_t cookie;
 	//! Данные сообщения
-	std::vector<uint8_t> _data;
+	std::vector<uint8_t> data;
 };
 
 
 //! Сообщение о состоянии отправного буфера радио
-class bus_input_radio_uplink_state: public bus_input_message
+class radio_uplink_state: public bus_input_message
 {
 public:
-	bus_input_radio_uplink_state(): bus_input_message(kind_t::radio_tx_state) {}
+	radio_uplink_state(): bus_input_message(kind_t::radio_uplink_state) {}
 
 	//! кука фрейма ожидающего отправку
 	std::optional<uint64_t> cookie_in_wait;
@@ -77,20 +74,21 @@ public:
 
 //! Сообщение с фреймом, полученным от радио
 /*! Само по себе радио шлет больше метаданных, рисуем только те, что интересны */
-class bus_input_radio_downlink_frame: public bus_input_message
+class radio_downlink_frame: public bus_input_message
 {
 public:
-	bus_input_radio_downlink_frame(): bus_input_message(kind_t::radio_frame_downlink) {}
+	radio_downlink_frame(): bus_input_message(kind_t::radio_frame_downlink) {}
 
 	//! Правильная ли у этого фрейма контрольная сумма уровня радио
 	bool checksum_valid = false;
 	//! Номер сообщения
-	uint64_t cookie = 0;
+	uint64_t frame_cookie = 0;
 	//! Номер фрейма (по мнению радио)
-	uint64_t frame_no = 0;
+	uint16_t frame_no = 0;
 	//! Собственно байты сообщения
 	std::vector<uint8_t> data;
 };
+
 
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
@@ -103,8 +101,9 @@ public:
 	//! Тип сообщения
 	enum class kind_t
 	{
-		sdu_uplink_event,			//!< событие с отправляемым SDU
-		sdu_downlink_arrived,		//!< SDU было принято стеком
+		sdu_uplink_event,		//!< событие, случившееся с отправляемым SDU
+		sdu_downlink_arrived,	//!< SDU было принято стеком
+		radio_uplink_frame,		//!< Отправка фрейма в радио-сервер
 	};
 
 protected:
@@ -121,24 +120,41 @@ std::string to_string(bus_output_message::kind_t kind);
 
 
 
-//! Сообщение о том, что SDU было отправлено по радио
-class bus_output_sdu_event: public bus_output_message
+//! Сообщение об удивительных событиях, происходящих с SDU в стеке и не только
+class sdu_uplink_event: public bus_output_message
 {
 public:
-	bus_output_sdu_event(): bus_output_message(kind_t::sdu_uplink_event) {}
+	//! Собственно что случилось с фреймом
+	enum class event_kind_t
+	{
+		sdu_accepted,			//!< Принят в стек
+		sdu_rejected,			//!< Не принят в стек
+		sdu_sent_to_radio,		//!< Передан на сервер радио
+		sdu_radiated,			//!< Излучён в эфир
+		sdu_radiation_failed,	//!< Илучение в эфир не удалось
+		// Пока все, но вообще тут должны быть еще
+		// sdu_delivered		//!< Пакет добрался до борта
+		// sdu_abandoned		//!< Пакет не добрался до борта
+	};
+
+	sdu_uplink_event(): bus_output_message(kind_t::sdu_uplink_event) {} // @suppress("Class members should be properly initialized")
 
 	//! идентификатор канала
 	ccsds::uslp::gmapid_t gmapid;
-	//! cookie полезной нагрузки (и его доп параметры)
-	ccsds::uslp::payload_part_cookie_t cookie;
+	//! cookie фрагмента полезной нагрузки
+	ccsds::uslp::payload_part_cookie_t part_cookie;
+	//! Тип события
+	event_kind_t event_kind;
+	//! Комментарий к событию
+	std::string comment;
 };
 
 
-//! Сообщение о том, что SDU было принято стеком
-class bus_output_sdu_downlink: public bus_output_message
+//! Сообщение о том, что SDU пришло по радио и было принято стеком
+class sdu_downlink: public bus_output_message
 {
 public:
-	bus_output_sdu_downlink(): bus_output_message(kind_t::sdu_downlink_arrived) {}
+	sdu_downlink(): bus_output_message(kind_t::sdu_downlink_arrived) {}
 
 	//! идентификатор канала
 	ccsds::uslp::gmapid_t gmapid;
@@ -147,6 +163,16 @@ public:
 	//! флаги состояния пакета \sa ccsds::uslp
 	uint64_t flags = 0;
 	//! Собственно данные пакета
+	std::vector<uint8_t> data;
+};
+
+
+class radio_uplink_frame: public bus_output_message
+{
+public:
+	radio_uplink_frame(): bus_output_message(kind_t::radio_uplink_frame) {}
+
+	uint64_t frame_cookie;
 	std::vector<uint8_t> data;
 };
 

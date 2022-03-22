@@ -22,8 +22,10 @@ public:
 
 	void close();
 
-	void send_message(const bus_output_sdu_downlink & message);
-	void send_message(const bus_output_sdu_event & message);
+	void send_message(const sdu_downlink & message);
+	void send_message(const sdu_uplink_event & message);
+	void send_message(const radio_uplink_frame & message);
+
 	std::unique_ptr<bus_input_message> recv_message();
 
 	zmq::socket_t & sub_socket() { return _sub_socket; }
@@ -32,13 +34,13 @@ public:
 	bool poll_sub_socket(std::chrono::milliseconds timeout);
 
 private:
-	std::unique_ptr<bus_input_sdu_uplink_request> parse_sdu_uplink_request_message(
+	std::unique_ptr<sdu_uplink_request> parse_sdu_uplink_request_message(
 			const preparsed_message & message
 	);
-	std::unique_ptr<bus_input_radio_downlink_frame> parse_downlink_frame_message(
+	std::unique_ptr<radio_downlink_frame> parse_downlink_frame_message(
 			const preparsed_message & message
 	);
-	std::unique_ptr<bus_input_radio_uplink_state> parse_radio_uplink_state_message(
+	std::unique_ptr<radio_uplink_state> parse_radio_uplink_state_message(
 			const preparsed_message & message
 	);
 

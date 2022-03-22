@@ -9,6 +9,7 @@
 #include <ccsds/uslp/events.hpp>
 #include <ccsds/epp/epp_header.hpp>
 
+
 #define ITS_GBUS_TOPIC_DOWNLINK_SDU "uslp.downlink_sdu"
 #define ITS_GBUS_TOPIC_UPLINK_SDU_REQUEST "uslp.uplink_sdu_request"
 #define ITS_GGUS_TOPIC_UPLINK_SDU_EVENT "uslp.uplink_sdu_event"
@@ -131,7 +132,7 @@ void bus_io::close()
 }
 
 
-void bus_io::send_message(const bus_output_sdu_downlink & message)
+void bus_io::send_message(const sdu_downlink & message)
 {
 	LOG_S(INFO+2) << "sending 'SDU accepted' bus message";
 
@@ -176,7 +177,7 @@ void bus_io::send_message(const bus_output_sdu_downlink & message)
 }
 
 
-void bus_io::send_message(const bus_output_sdu_event & message)
+void bus_io::send_message(const sdu_uplink_event & message)
 {
 	LOG_S(INFO+2) << "sending 'SDU emitted' bus message";
 
@@ -189,9 +190,9 @@ void bus_io::send_message(const bus_output_sdu_event & message)
 	j["map_id"] = message.gmapid.map_id();
 
 	auto cookie = nlohmann::json();
-	cookie["cookie"] = message.cookie.cookie;
-	cookie["part_no"] = message.cookie.part_no;
-	cookie["is_final_part"] = message.cookie.final;
+	cookie["cookie"] = message.part_cookie.cookie;
+	cookie["part_no"] = message.part_cookie.part_no;
+	cookie["is_final_part"] = message.part_cookie.final;
 	j["cookie"] = std::move(cookie);
 
 	const std::string metadata = j.dump();
@@ -200,6 +201,12 @@ void bus_io::send_message(const bus_output_sdu_event & message)
 	// В сокет!
 	_pub_socket.send(zmq::const_buffer(topic.data(), topic.size()), zmq::send_flags::sndmore);
 	_pub_socket.send(zmq::const_buffer(metadata.data(), metadata.size()));
+}
+
+
+void bus_io::send_message(const radio_uplink_frame & message)
+{
+	// TODO;
 }
 
 
@@ -326,7 +333,7 @@ bool bus_io::poll_sub_socket(std::chrono::milliseconds timeout)
 }
 
 
-std::unique_ptr<bus_input_sdu_uplink_request>
+std::unique_ptr<sdu_uplink_request>
 bus_io::parse_sdu_uplink_request_message(
 		const preparsed_message & message
 )
@@ -340,7 +347,7 @@ bus_io::parse_sdu_uplink_request_message(
 	const auto cookie = _get_or_die<ccsds::uslp::payload_cookie_t>(j, "cookie");
 
 	// Строим само сообщение
-	auto retval = std::make_unique<bus_input_sdu_uplink_request>();
+	auto retval = std::make_unique<sdu_uplink_request>();
 
 	retval->gmapid.sc_id(sc_id);
 	retval->gmapid.vchannel_id(vchannel_id);
@@ -348,13 +355,13 @@ bus_io::parse_sdu_uplink_request_message(
 	retval->cookie = cookie;
 	retval->qos = qos;
 
-	retval->_data = std::move(message.payload);
+	retval->data = std::move(message.payload);
 
 	return retval;
 }
 
 
-std::unique_ptr<bus_input_radio_downlink_frame>
+std::unique_ptr<radio_downlink_frame>
 bus_io::parse_downlink_frame_message(
 		const preparsed_message & message
 )
@@ -366,7 +373,7 @@ bus_io::parse_downlink_frame_message(
 	uint64_t frame_no = _get_or_die<uint64_t>(j, "frame_no");
 
 	// Формируем сообщение
-	auto retval = std::make_unique<bus_input_radio_downlink_frame>();
+	auto retval = std::make_unique<radio_downlink_frame>();
 	retval->checksum_valid = checksum_valid;
 	retval->frame_no = frame_no;
 	retval->data = std::move(message.payload);
@@ -375,7 +382,7 @@ bus_io::parse_downlink_frame_message(
 }
 
 
-std::unique_ptr<bus_input_radio_uplink_state>
+std::unique_ptr<radio_uplink_state>
 bus_io::parse_radio_uplink_state_message(
 		const preparsed_message & message
 )
@@ -396,7 +403,7 @@ bus_io::parse_radio_uplink_state_message(
 	const auto cookie_dropped = get_optional_cookie("cookie_dropped");
 
 	// собираем объект
-	auto retval = std::make_unique<bus_input_radio_uplink_state>();
+	auto retval = std::make_unique<radio_uplink_state>();
 	retval->cookie_in_wait = cookie_in_wait;
 	retval->cookie_in_progress = cookie_in_progress;
 	retval->cookie_done = cookie_sent;

@@ -20,79 +20,30 @@
 #include <ccsds/uslp/map/map_access_acceptor.hpp>
 
 
-#define RADIO_FRAME_SIZE (200)
+
+#define RADIO_FRAME_SIZE			(200)
+#define SPACECRAFT_ID				(0x42)
+
+#define UPLINK_VCHANNEL_ID			(0x00)
+#define UPLINK_TELECOMMAND_MAPID	(0x00)
+#define UPLINK_IP_MAPID				(0x01)
+
+#define DOWNLINK_VCHANNEL_ID		(0x00)
+#define DOWNLINK_TELEMETERY_MAPID	(0x00)
+#define DOWNLINK_IP_MAPID			(0x01)
 
 
-class ostack
+class ostack: public ccsds::uslp::output_stack
 {
 public:
-	ostack()
-	{
-		using namespace ccsds;
-		using namespace ccsds::uslp;
-
-		mchannel_rr_muxer * phys = _stack.create_pchannel<mchannel_rr_muxer>("lora");
-		phys->frame_size(RADIO_FRAME_SIZE);
-		phys->error_control_len(error_control_len_t::ZERO);
-
-		auto master = _stack.create_mchannel<vchannel_rr_muxer>(mcid_t(0x42));
-		master->id_is_destination(true);
-
-		auto virt = _stack.create_vchannel<map_rr_muxer>(gvcid_t(master->channel_id, 0x00));
-		virt->frame_seq_no_len(2);
-
-		_ip_channel = _stack.create_map<map_packet_emitter>(gmapid_t(virt->channel_id, 0x00));
-		_command_channel = _stack.create_map<map_access_emitter>(gmapid_t(virt->channel_id, 0x01));
-
-		phys->finalize();
-	}
-
-
-	void send_command(ccsds::uslp::payload_cookie_t cookie, const uint8_t * data, size_t data_size)
-	{
-		using namespace ccsds;
-		using namespace ccsds::uslp;
-
-		_command_channel->add_sdu(cookie, data, data_size, qos_t::SEQUENCE_CONTROLLED);
-	}
-
-private:
-	ccsds::uslp::map_packet_emitter * _ip_channel;
-	ccsds::uslp::map_access_emitter * _command_channel;
-	ccsds::uslp::output_stack _stack;
-
+	ostack();
 };
 
 
-class istack
+class istack: public ccsds::uslp::input_stack
 {
 public:
-	istack()
-	{
-		using namespace ccsds;
-		using namespace ccsds::uslp;
-
-		mchannel_demuxer * phys;
-		phys = _stack.create_pchannel<mchannel_demuxer>("lora");
-		phys->insert_zone_size(0);
-		phys->error_control_len(error_control_len_t::ZERO);
-
-		vchannel_demuxer * master;
-		master = _stack.create_mchannel<vchannel_demuxer>(mcid_t(0x42));
-
-		map_demuxer * virt;
-		virt = _stack.create_vchannel<map_demuxer>(gvcid_t(master->channel_id, 0x00));
-
-		_ip_channel = _stack.create_map<map_packet_acceptor>(gmapid_t(virt->channel_id, 0x00));
-		_telemetry_channel = _stack.create_map<map_packet_acceptor>(gmapid_t(virt->channel_id, 0x01));
-
-		phys->finalize();
-	}
-
-private:
-	ccsds::uslp::map_packet_acceptor * _ip_channel;
-	ccsds::uslp::map_packet_acceptor * _telemetry_channel;
-	ccsds::uslp::input_stack _stack;
+	istack();
 };
 
 

@@ -18,6 +18,8 @@ add_executable(server-uslp
 	src/event_handler.hpp
 	src/stack.hpp
 	src/stack.cpp
+	src/dispatcher.hpp
+	src/dispatcher.cpp
 	src/main.cpp
 
 	libs/json.hpp
