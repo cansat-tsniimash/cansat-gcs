@@ -57,6 +57,32 @@ RESULT_TYPE _get_or_die(const nlohmann::json & j, const std::string & key)
 }
 
 
+static std::vector<std::string> _downlink_sdu_flags_to_string(uint64_t flags)
+{
+	using ccsds::uslp::acceptor_event_map_sdu;
+
+	static const std::array<
+		std::tuple<acceptor_event_map_sdu::data_flags_t, std::string>,
+		5
+	> possible_values = { // @suppress("Invalid arguments")
+			std::make_tuple(acceptor_event_map_sdu::INCOMPLETE, "incomplete"), // @suppress("Invalid arguments")
+			std::make_tuple(acceptor_event_map_sdu::IDLE, "idle"),  // @suppress("Invalid arguments")
+			std::make_tuple(acceptor_event_map_sdu::CORRUPTED, "corrupted"),  // @suppress("Invalid arguments")
+			std::make_tuple(acceptor_event_map_sdu::MAPA, "mapa"),  // @suppress("Invalid arguments")
+			std::make_tuple(acceptor_event_map_sdu::MAPP, "mapp"),  // @suppress("Invalid arguments")
+	};
+
+	std::vector<std::string> retval;
+	for (const auto & value: possible_values)
+	{
+		if (flags & std::get<0>(value))
+			retval.push_back(std::get<1>(value));
+	}
+
+	return retval;
+}
+
+
 static std::string qos_to_string(ccsds::uslp::qos_t qos)
 {
 	if (ccsds::uslp::qos_t::EXPEDITED == qos)
@@ -104,9 +130,9 @@ bus_io::bus_io(zmq::context_t & ctx)
 
 void bus_io::connect_bpcs(const std::string & endpoint)
 {
-	LOG_S(INFO) << "connection BPCS to \"" << endpoint << "\"";
-
 	_sub_socket = zmq::socket_t(_ctx, zmq::socket_type::sub);
+
+	LOG_S(INFO) << "connection BPCS to \"" << endpoint << "\"";
 	_sub_socket.connect(endpoint);
 
 	LOG_S(INFO) << "subscribing to topics";
@@ -144,31 +170,11 @@ void bus_io::send_message(const sdu_downlink & message)
 	j["map_id"] = message.gmapid.map_id();
 
 	j["qos"] = qos_to_string(message.qos);
-
-	j["incomplete"] = static_cast<bool>(message.flags & ccsds::uslp::acceptor_event_map_sdu::INCOMPLETE);
-	j["idle"] = static_cast<bool>(message.flags & ccsds::uslp::acceptor_event_map_sdu::IDLE);
-	j["corrupted"] = static_cast<bool>(message.flags & ccsds::uslp::acceptor_event_map_sdu::CORRUPTED);
-	j["mapa"] = static_cast<bool>(message.flags & ccsds::uslp::acceptor_event_map_sdu::MAPA);
-	j["mapp"] = static_cast<bool>(message.flags & ccsds::uslp::acceptor_event_map_sdu::MAPP);
-
-	const bool is_packet = message.flags & ccsds::uslp::acceptor_event_map_sdu::MAPP;
-	auto data_begin = message.data.cbegin();
-	auto data_end = message.data.cend();
-	if (is_packet)
-	{
-		ccsds::epp::header_t header;
-		header.read(message.data.begin(), message.data.end());
-		j["protocol_id"] = header.protocol_id;
-		j["user_defined_field"] = header.user_defined_field; // optional
-		j["protocol_id_extension"] = header.protocol_id_extension; // optional
-
-		// Снимем epp заголовок с пакета
-		std::advance(data_begin, header.size());
-	}
+	j["flags"] = _downlink_sdu_flags_to_string(message.flags);
 
 	std::string metadata = j.dump();
 
-	std::vector<uint8_t> data(data_begin, data_end);
+	const std::vector<uint8_t> & data = message.data;
 
 	// Фигачим в сокет!
 	_pub_socket.send(zmq::const_buffer(topic.data(), topic.size()), zmq::send_flags::sndmore);

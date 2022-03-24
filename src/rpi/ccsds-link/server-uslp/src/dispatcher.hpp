@@ -9,8 +9,11 @@
 #include "bus_messages.hpp"
 #include "bus_io.hpp"
 
+#include <ccsds/uslp/events.hpp>
+#include <ccsds/uslp/input_stack.hpp>
 
-class dispatcher
+
+class dispatcher: public ccsds::uslp::input_stack_event_handler
 {
 public:
 	dispatcher(istack & istack_, ostack & ostack_, bus_io & io_);
@@ -18,6 +21,10 @@ public:
 	void poll();
 
 protected:
+	// приём и обработка сообщений с шины
+	virtual void _on_map_sdu_event(const ccsds::uslp::acceptor_event_map_sdu & event) override;
+
+	// Приём и обработка собщений с шины
 	void _dispatch_bus_message(const bus_input_message & message);
 
 	void _on_sdu_uplink_request(const sdu_uplink_request & request);

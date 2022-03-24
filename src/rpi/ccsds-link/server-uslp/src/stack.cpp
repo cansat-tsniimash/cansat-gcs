@@ -1,6 +1,21 @@
 #include "stack.hpp"
 
 
+#include <ccsds/uslp/common/defs.hpp>
+
+#include <ccsds/uslp/physical/mchannel_rr_muxer.hpp>
+#include <ccsds/uslp/master/vchannel_rr_muxer.hpp>
+#include <ccsds/uslp/virtual/map_rr_muxer.hpp>
+#include <ccsds/uslp/map/map_packet_emitter.hpp>
+#include <ccsds/uslp/map/map_access_emitter.hpp>
+
+#include <ccsds/uslp/physical/mchannel_demuxer.hpp>
+#include <ccsds/uslp/master/vchannel_demuxer.hpp>
+#include <ccsds/uslp/virtual/map_demuxer.hpp>
+#include <ccsds/uslp/map/map_packet_acceptor.hpp>
+#include <ccsds/uslp/map/map_access_acceptor.hpp>
+
+
 ostack::ostack()
 {
 	using namespace ccsds;

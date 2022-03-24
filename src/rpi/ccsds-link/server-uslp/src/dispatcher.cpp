@@ -1,5 +1,7 @@
 #include "dispatcher.hpp"
 
+#include <tuple>
+#include <array>
 #include <chrono>
 
 #include "log.hpp"
@@ -11,7 +13,9 @@
 
 dispatcher::dispatcher(istack & istack_, ostack & ostack_, bus_io & io_)
 	: _istack(istack_), _ostack(ostack_), _io(io_)
-{}
+{
+	_istack.set_event_handler(this);
+}
 
 
 void dispatcher::poll()
@@ -29,6 +33,21 @@ void dispatcher::poll()
 		return;
 	}
 
+}
+
+
+void dispatcher::_on_map_sdu_event(const ccsds::uslp::acceptor_event_map_sdu & event)
+{
+	LOG_S(INFO+1) << "got map sdu frame on gmapid " << event.channel_id;
+
+	// Собираем сообщение
+	sdu_downlink message;
+	message.gmapid = event.channel_id;
+	message.qos = event.qos;
+	message.flags = event.flags;
+	message.data = event.data;
+
+	_io.send_message(message);
 }
 
 
@@ -134,7 +153,7 @@ void dispatcher::_on_radio_uplink_state(const radio_uplink_state & state)
 	LOG_S(INFO+1) << "got radio uplink state";
 	try
 	{
-		// Смотрим, не ждем ли мы каких событий с отправкой
+		// Смотрим, не ждем ли мы каких событий с уже отправленной строкой
 		if (_sent_to_rf_frame)
 		{
 			const auto sent_frame_cookie = std::get<0>(*_sent_to_rf_frame);
@@ -225,6 +244,4 @@ void dispatcher::_on_radio_uplink_state(const radio_uplink_state & state)
 	{
 		LOG_S(ERROR) << "unable to process radio uplink state message: " << e.what();
 	}
-
-
 }
