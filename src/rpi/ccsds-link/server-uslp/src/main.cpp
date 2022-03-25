@@ -7,6 +7,8 @@
 
 #include "log.hpp"
 #include "bus_io.hpp"
+#include "dispatcher.hpp"
+#include "stack.hpp"
 
 
 #define ITS_BSCP_ENDPOINT_KEY "ITS_GBUS_BSCP_ENDPOINT"
@@ -82,6 +84,11 @@ static int real_main(int argc, char ** argv)
 	io.connect_bpcs(c.bpcs_endpoint);
 	io.connect_bscp(c.bscp_endpoint);
 
+	ostack ost;
+	istack ist;
+
+	dispatcher d(ist, ost, io);
+
 	signal_catched.store(false);
 	std::signal(SIGTERM, signal_handler);
 	std::signal(SIGINT, signal_handler);
@@ -95,14 +102,7 @@ static int real_main(int argc, char ** argv)
 			break;
 		}
 
-		LOG_S(INFO+2) << "entering poll cycle";
-		const auto poll_timeout = std::chrono::milliseconds(1000);
-		const bool got_messages = io.poll_sub_socket(poll_timeout);
-		if (!got_messages)
-			continue;
-
-		const auto message_ptr = io.recv_message();
-		LOG_S(INFO+2) << "got bus message " << to_string(message_ptr->kind);
+		d.poll();
 	}
 
 	LOG_S(INFO) << "terminating gracefully";

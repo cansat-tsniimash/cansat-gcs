@@ -79,6 +79,7 @@ class RadioServerImitator:
         self.stats = RadioStats()
         self.downlink_cookie = 1 # ноль запрещен
         self.downlink_frame_no = 0 # Начнем с нуля
+        self.uplink_frame_no = 0
 
         self.uplink_in_wait = None # type: typing.Optional[int]
         self.uplink_in_progress = None # type: typing.Optional[int]
@@ -94,6 +95,9 @@ class RadioServerImitator:
         self.sent_stats_timepoint = 0.0
         self.sent_uplink_state_timepoint = 0.0
 
+        self.block_irssi = False
+        self.block_stats = False
+
         # Подписываемся на аплинк фреймы
         sub_socket.setsockopt(zmq.SUBSCRIBE, b"radio.uplink_frame")
         # Подписываемся на запросы мощи
@@ -104,7 +108,8 @@ class RadioServerImitator:
         now = time.time()
         if now > self.sent_instant_rssi_timepoint + self.INSTANT_RSSI_PERIOD:
             # пора
-            self.send_rssi_instant()
+            if not self.block_irssi:
+                self.send_rssi_instant()
             self.sent_instant_rssi_timepoint = now
 
     def do_stats_iteration(self):
@@ -112,7 +117,8 @@ class RadioServerImitator:
         now = time.time()
         if now > self.sent_stats_timepoint + self.STATS_PERIOD:
             # пора
-            self.send_stats()
+            if not self.block_stats:
+                self.send_stats()
             self.sent_stats_timepoint = now
 
     def do_uplink_state_iteration(self, force:bool=False):
@@ -148,10 +154,10 @@ class RadioServerImitator:
         if self.uplink_socket in ready_to_read:
             # О, чет пришло, скидываем на шину
             got_frame = True
-            data = self.uplink_socket.recv()
-            frame_no = struct.unpack("<H", data[:2])
+            data = self.uplink_socket.recv(0xFFFF)
+            frame_no, = struct.unpack("<H", data[:2])
             payload = data[2:]
-            _log.info("got frame %s from uplink: %s", frame_no, payload)
+            _log.info("got frame %s from uplink", frame_no)
             self.send_downlink_frame(payload=payload, checksum_valid=True, frame_no=frame_no)
 
         # На этом все
@@ -165,6 +171,10 @@ class RadioServerImitator:
 
         # окей, значит есть
         # Говорим клиенту о том, что мы начинаем отправку
+        data = bytes(self.uplink_buffer)
+        self.uplink_buffer = bytes()
+        data = struct.pack("<H", self.uplink_frame_no) + data
+        self.uplink_frame_no = (self.uplink_frame_no + 1) % 0xFFFF
         self.uplink_in_progress = self.uplink_in_wait
         self.uplink_in_wait = None
         self.send_uplink_state()
@@ -173,8 +183,7 @@ class RadioServerImitator:
         self.active_sleep(self.FRAME_TRANSMIT_TIME)
 
         # Реально отправляем данные
-        self.uplink_socket.send(self.uplink_buffer)
-        self.uplink_buffer = bytes()
+        self.uplink_socket.send(data)
         self.uplink_done = self.uplink_in_progress
         self.uplink_in_progress = None
         self.send_uplink_state()
@@ -198,10 +207,12 @@ class RadioServerImitator:
         self,
         payload: bytes, checksum_valid:bool=True, frame_no:int=None,
     ):
-        cookie = self.downlink_cookie
-
         if frame_no is None:
             frame_no = self.downlink_frame_no
+
+        self.downlink_frame_no = (frame_no + 1) % 0xFFFF
+        cookie = self.downlink_cookie
+        self.downlink_cookie = (self.downlink_cookie + 1) or 1 # ноль запрещен
 
         seconds, useconds = self._now()
         rssi_pkt, snr_pkt, rssi_signal = self._get_frame_rssi()
@@ -223,7 +234,7 @@ class RadioServerImitator:
             payload
         ]
 
-        self.pub_socket.write_multipart(message)
+        self.pub_socket.send_multipart(message)
         _log.info("sent downlink_frame %s" , message)
 
         # Тепеь добрасываем rssi пакет отдельно
@@ -243,14 +254,12 @@ class RadioServerImitator:
             json.dumps(metadata).encode("utf-8")
         ]
 
-        self.pub_socket.write_multipart(message)
-        _log.info("sent frame rssi data %s" % message)
+        self.pub_socket.send_multipart(message)
+        _log.debug("sent frame rssi data %s" % message)
 
         # Обновляем статиситку и прочее
-        self.downlink_frame_no = (frame_no + 1) % 0xFFFF
-        self.downlink_cookie = (self.downlink_cookie + 1) or 1 # ноль запрещен
         self.stats.srv_rx_frames += 1
-        self.pkt_received += 1
+        self.stats.pkt_received += 1
 
     def send_rssi_instant(self, rssi:int=0):
         seconds, useconds = self._now()
@@ -316,6 +325,7 @@ class RadioServerImitator:
 
     def process_power_request(self, message_parts: typing.List[bytes]):
         meta = message[0].decode("utf-8")
+        meta = json.loads(meta)
 
         pa_power = meta["pa_power"]
         _log.info("got pa power request to %s", pa_power)
@@ -323,11 +333,13 @@ class RadioServerImitator:
 
     def process_uplink_frame(self, message: typing.List[bytes]):
         meta, payload = message[0].decode("utf-8"), message[1]
+        meta = json.loads(meta)
 
         cookie = meta["cookie"]
-        _log.info("got uplink frame request: cookie %s", cookie)
+        _log.info("got uplink frame request %s", message)
         self.uplink_in_wait = cookie
         self.uplink_buffer = payload
+        self.send_uplink_state()
 
 
 def parse_host_port(value: str) -> typing.Tuple[str, int]:
@@ -338,7 +350,7 @@ def parse_host_port(value: str) -> typing.Tuple[str, int]:
 
 def main(argv):
     core = SenderCore("PA power request sender")
-    core.setup_log()
+    core.setup_log(logging.INFO)
     core.arg_parser.add_argument(
         "--uplink-bind", nargs='?', type=str, required=False, dest='uplink_bind',
         help='bind uplink udp socket to'
@@ -346,6 +358,14 @@ def main(argv):
     core.arg_parser.add_argument(
         "--uplink-connect", nargs='?', type=str, required=True, dest='uplink_connect',
         help='connect uplink udp socket to'
+    )
+    core.arg_parser.add_argument(
+        "--block-irssi", action='store_true', dest='block_irssi',
+        help='disable instant rssi messages'
+    )
+    core.arg_parser.add_argument(
+        "--block-stats", action='store_true', dest='block_stats',
+        help='block radio stats messages'
     )
     core.parse_args(argv)
     core.connect_sockets()
@@ -366,6 +386,8 @@ def main(argv):
         sub_socket=sub_socket, pub_socket=pub_socket,
         uplink_socket=uplink_socket
     )
+    radio.block_irssi = core.args.block_irssi
+    radio.block_stats = core.args.block_stats
 
     while True:
         try:
@@ -380,11 +402,11 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    argv = [
-        "--bus-bscp=tcp://localhost:7778",
-        "--bus-bpcs=tcp://localhost:7777",
-        "--uplink-bind=0.0.0.0:2222",
-        "--uplink-connect=localhost:2223"
-    ]
-    #argv = sys.argv[1:]
+    # argv = [
+    #     "--bus-bscp=tcp://localhost:7777",
+    #     "--bus-bpcs=tcp://localhost:7778",
+    #     "--uplink-bind=0.0.0.0:2222",
+    #     "--uplink-connect=localhost:2223"
+    # ]
+    argv = sys.argv[1:]
     exit(main(argv))

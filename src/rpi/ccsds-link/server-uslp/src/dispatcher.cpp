@@ -26,19 +26,24 @@ void dispatcher::poll()
 	const bool have_msgs = _io.poll_sub_socket(timeout);
 	LOG_S(INFO+2) << "poll complete with " << have_msgs;
 
-	auto message = _io.recv_message();
-	if (!message)
+	if (have_msgs)
 	{
-		LOG_S(INFO+2) << "unable to read message?";
-		return;
+		const auto message = _io.recv_message();
+		if (message)
+		{
+			_dispatch_bus_message(*message);
+		}
+		else
+		{
+			LOG_S(INFO+2) << "unable to read message?";
+		}
 	}
-
 }
 
 
 void dispatcher::_on_map_sdu_event(const ccsds::uslp::acceptor_event_map_sdu & event)
 {
-	LOG_S(INFO+1) << "got map sdu frame on gmapid " << event.channel_id;
+	LOG_S(INFO+1) << "got downlink map sdu frame on gmapid " << event.channel_id;
 
 	// Собираем сообщение
 	sdu_downlink message;
@@ -82,7 +87,9 @@ void dispatcher::_dispatch_bus_message(const bus_input_message & message)
 
 void dispatcher::_on_sdu_uplink_request(const sdu_uplink_request & request)
 {
-	LOG_S(INFO+1) << "got sdu uplink request for channel " << request.gmapid;
+	LOG_S(INFO+1) << "got sdu uplink request for " << request.gmapid << ", "
+			<< "cookie " << request.cookie
+	;
 
 	try
 	{
@@ -101,11 +108,27 @@ void dispatcher::_on_sdu_uplink_request(const sdu_uplink_request & request)
 				request.cookie, request.data.data(), request.data.size(), request.qos
 		);
 
-		LOG_S(INFO+1) << "accepted sdu uplink request for channel " << request.gmapid;
+		LOG_S(INFO+1) << "accepted sdu uplink request for " << request.gmapid << ", "
+				<< "cookie: " << request.cookie
+		;
+
+		// Сообщаем об этом клиенту
+		sdu_uplink_event reply;
+		reply.part_cookie.cookie = request.cookie;
+		reply.part_cookie.part_no = 0;
+		reply.part_cookie.final = true;
+
+		reply.event_kind = sdu_uplink_event::event_kind_t::sdu_accepted;
+		reply.gmapid = request.gmapid;
+		_io.send_message(reply);
 	}
 	catch (std::exception & e)
 	{
-		LOG_S(ERROR) << "SDU for " << request.gmapid << "rejected: " << e.what();
+		LOG_S(ERROR) << "SDU for " << request.gmapid << ", "
+				<< "cookie: " << request.cookie << " "
+				<< "rejected: " << e.what()
+		;
+
 		sdu_uplink_event reply;
 		reply.part_cookie.cookie = request.cookie;
 		reply.part_cookie.part_no = 0;
@@ -138,7 +161,7 @@ void dispatcher::_on_radio_downlink_frame(const radio_downlink_frame & frame)
 
 		// Наконец то кормим фрейм в радио
 		_istack.push_frame(frame.data.data(), frame.data.size());
-		LOG_S(INFO+1) << "accepted radio downlink frame " << frame.frame_cookie;
+		LOG_S(INFO+1) << "accepted radio downlink frame cookie " << frame.frame_cookie;
 	}
 	catch (std::exception & e)
 	{
@@ -150,7 +173,7 @@ void dispatcher::_on_radio_downlink_frame(const radio_downlink_frame & frame)
 
 void dispatcher::_on_radio_uplink_state(const radio_uplink_state & state)
 {
-	LOG_S(INFO+1) << "got radio uplink state";
+	LOG_S(INFO+2) << "got radio uplink state";
 	try
 	{
 		// Смотрим, не ждем ли мы каких событий с уже отправленной строкой
@@ -201,7 +224,7 @@ void dispatcher::_on_radio_uplink_state(const radio_uplink_state & state)
 		if (!state.cookie_in_wait.has_value())
 		{
 			// Можем!
-			LOG_S(INFO+2) << "radio ready to accept frame!";
+			LOG_S(INFO+2) << "radio is ready to accept frame!";
 			ccsds::uslp::pchannel_frame_params_t frame_params;
 			const bool output_frame_ready = _ostack.peek_frame(frame_params);
 			if (output_frame_ready)

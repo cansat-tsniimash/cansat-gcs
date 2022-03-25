@@ -12,7 +12,7 @@
 
 #define ITS_GBUS_TOPIC_DOWNLINK_SDU "uslp.downlink_sdu"
 #define ITS_GBUS_TOPIC_UPLINK_SDU_REQUEST "uslp.uplink_sdu_request"
-#define ITS_GGUS_TOPIC_UPLINK_SDU_EVENT "uslp.uplink_sdu_event"
+#define ITS_GBUS_TOPIC_UPLINK_SDU_EVENT "uslp.uplink_sdu_event"
 
 #define ITS_GBUS_TOPIC_UPLINK_FRAME "radio.uplink_frame"
 #define ITS_GBUS_TOPIC_DOWNLINK_FRAME "radio.downlink_frame"
@@ -83,7 +83,7 @@ static std::vector<std::string> _downlink_sdu_flags_to_string(uint64_t flags)
 }
 
 
-static std::string qos_to_string(ccsds::uslp::qos_t qos)
+static std::string _qos_to_string(ccsds::uslp::qos_t qos)
 {
 	if (ccsds::uslp::qos_t::EXPEDITED == qos)
 		return "expedited";
@@ -97,7 +97,7 @@ static std::string qos_to_string(ccsds::uslp::qos_t qos)
 }
 
 
-static ccsds::uslp::qos_t qos_from_string(const std::string & string)
+static ccsds::uslp::qos_t _qos_from_string(const std::string & string)
 {
 	if ("expedited" == string)
 		return ccsds::uslp::qos_t::EXPEDITED;
@@ -108,6 +108,23 @@ static ccsds::uslp::qos_t qos_from_string(const std::string & string)
 		LOG_S(ERROR) << "invalid qos string value \"" << string << "\"";
 		throw std::invalid_argument("invalid qos string value");
 	}
+}
+
+
+static std::string _uplink_sdu_event_kind_to_string(sdu_uplink_event::event_kind_t kind)
+{
+	switch (kind)
+	{
+	case sdu_uplink_event::event_kind_t::sdu_accepted: return "sdu_accepted";
+	case sdu_uplink_event::event_kind_t::sdu_rejected: return "sdu_rejected";
+	case sdu_uplink_event::event_kind_t::sdu_sent_to_radio: return "sdu_sent_to_radio";
+	case sdu_uplink_event::event_kind_t::sdu_radiated: return "sdu_radiated";
+	case sdu_uplink_event::event_kind_t::sdu_radiation_failed: return "sdu_radiation_failed";
+	};
+
+	std::stringstream error;
+	error << "invalid sdu uplink event kind: \"" << std::to_string(static_cast<int>(kind)) << "\"";
+	throw std::invalid_argument(error.str());
 }
 
 
@@ -169,7 +186,7 @@ void bus_io::send_message(const sdu_downlink & message)
 	j["vchannel_id"] = message.gmapid.vchannel_id();
 	j["map_id"] = message.gmapid.map_id();
 
-	j["qos"] = qos_to_string(message.qos);
+	j["qos"] = _qos_to_string(message.qos);
 	j["flags"] = _downlink_sdu_flags_to_string(message.flags);
 
 	std::string metadata = j.dump();
@@ -185,12 +202,11 @@ void bus_io::send_message(const sdu_downlink & message)
 
 void bus_io::send_message(const sdu_uplink_event & message)
 {
-	LOG_S(INFO+2) << "sending 'SDU emitted' bus message";
+	LOG_S(INFO+2) << "sending uplink sdu event bus message";
 
-	const std::string topic = ITS_GGUS_TOPIC_UPLINK_SDU_EVENT;
+	const std::string topic = ITS_GBUS_TOPIC_UPLINK_SDU_EVENT;
 
 	nlohmann::json j;
-
 	j["sc_id"] = message.gmapid.mcid().sc_id();
 	j["vchannel_id"] = message.gmapid.vchannel_id();
 	j["map_id"] = message.gmapid.map_id();
@@ -200,6 +216,8 @@ void bus_io::send_message(const sdu_uplink_event & message)
 	cookie["part_no"] = message.part_cookie.part_no;
 	cookie["is_final_part"] = message.part_cookie.final;
 	j["cookie"] = std::move(cookie);
+	j["event"] = _uplink_sdu_event_kind_to_string(message.event_kind);
+	j["comment"] = message.comment;
 
 	const std::string metadata = j.dump();
 	// данных тут нет.
@@ -212,7 +230,18 @@ void bus_io::send_message(const sdu_uplink_event & message)
 
 void bus_io::send_message(const radio_uplink_frame & message)
 {
-	// TODO;
+	LOG_S(INFO+2) << "sending uplink frame bus message";
+
+	const std::string topic = ITS_GBUS_TOPIC_UPLINK_FRAME;
+
+	nlohmann::json j;
+	j["cookie"] = message.frame_cookie;
+	const std::string metadata = j.dump();
+
+	// В сокет!
+	_pub_socket.send(zmq::const_buffer(topic.data(), topic.size()), zmq::send_flags::sndmore);
+	_pub_socket.send(zmq::const_buffer(metadata.data(), metadata.size()), zmq::send_flags::sndmore);
+	_pub_socket.send(zmq::const_buffer(message.data.data(), message.data.size()));
 }
 
 
@@ -231,7 +260,7 @@ std::unique_ptr<bus_input_message> bus_io::recv_message()
 	}
 
 	const std::string topic(reinterpret_cast<char*>(topic_msg.data()), topic_msg.size());
-	LOG_S(INFO+1) << "got msg topic \"" << topic << "\"";
+	LOG_S(INFO+2) << "got msg topic \"" << topic << "\"";
 	if (!topic_msg.more())
 	{
 		LOG_S(ERROR) << "there is no zmq message parts after topic";
@@ -286,17 +315,17 @@ std::unique_ptr<bus_input_message> bus_io::recv_message()
 		if (topic == ITS_GBUS_TOPIC_UPLINK_SDU_REQUEST)
 		{
 			retval = parse_sdu_uplink_request_message(preparsed_message{metadata, std::move(payload)});
-			LOG_S(INFO + 1) << "got an uplink sdu request message";
+			LOG_S(INFO+1) << "got an uplink sdu request message";
 		}
 		else if (topic == ITS_GBUS_TOPIC_DOWNLINK_FRAME)
 		{
 			retval = parse_downlink_frame_message(preparsed_message{metadata, std::move(payload)});
-			LOG_S(INFO + 1) << "got a downlink frame message";
+			LOG_S(INFO+1) << "got a downlink frame message";
 		}
 		else if (topic == ITS_GBUS_TOPIC_UPLINK_STATE)
 		{
 			retval = parse_radio_uplink_state_message(preparsed_message{metadata, std::move(payload)});
-			LOG_S(INFO + 1) << "got a radio uplink state message";
+			LOG_S(INFO+2) << "got a radio uplink state message";
 		}
 		else
 		{
@@ -349,7 +378,7 @@ bus_io::parse_sdu_uplink_request_message(
 	const auto sc_id = _get_or_die<int>(j, "sc_id");
 	const auto vchannel_id = _get_or_die<int>(j, "vchannel_id");
 	const auto map_id = _get_or_die<int>(j, "map_id");
-	const auto qos = qos_from_string(_get_or_die<std::string>(j, "qos"));
+	const auto qos = _qos_from_string(_get_or_die<std::string>(j, "qos"));
 	const auto cookie = _get_or_die<ccsds::uslp::payload_cookie_t>(j, "cookie");
 
 	// Строим само сообщение
@@ -375,14 +404,15 @@ bus_io::parse_downlink_frame_message(
 	// Разгребаем
 	const auto & j = message.metadata;
 	const bool checksum_valid = _get_or_die<bool>(j, "checksum_valid");
-	uint64_t cookie = _get_or_die<uint64_t>(j, "cookie");
-	uint64_t frame_no = _get_or_die<uint64_t>(j, "frame_no");
+	const uint64_t frame_no = _get_or_die<uint64_t>(j, "frame_no");
+	const auto cookie = _get_or_die<ccsds::uslp::payload_cookie_t >(j, "cookie");
 
 	// Формируем сообщение
 	auto retval = std::make_unique<radio_downlink_frame>();
 	retval->checksum_valid = checksum_valid;
 	retval->frame_no = frame_no;
 	retval->data = std::move(message.payload);
+	retval->frame_cookie = cookie;
 
 	return retval;
 }

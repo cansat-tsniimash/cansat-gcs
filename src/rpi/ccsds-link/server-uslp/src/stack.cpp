@@ -31,7 +31,7 @@ ostack::ostack()
 	auto virt = create_vchannel<map_rr_muxer>(gvcid_t(master->channel_id, UPLINK_VCHANNEL_ID));
 	virt->frame_seq_no_len(2);
 
-	auto * command_channel = create_map<map_access_emitter>(gmapid_t(virt->channel_id, UPLINK_TELECOMMAND_MAPID));
+	auto * command_channel = create_map<map_packet_emitter>(gmapid_t(virt->channel_id, UPLINK_TELECOMMAND_MAPID));
 	auto * ip_channel = create_map<map_packet_emitter>(gmapid_t(virt->channel_id, UPLINK_IP_MAPID));
 
 	phys->finalize();
@@ -55,6 +55,8 @@ istack::istack()
 	virt = create_vchannel<map_demuxer>(gvcid_t(master->channel_id, DOWNLINK_VCHANNEL_ID));
 
 	auto * telemetry_channel = create_map<map_packet_acceptor>(gmapid_t(virt->channel_id, DOWNLINK_TELEMETERY_MAPID));
+	telemetry_channel->emit_idle_packets(false);
+	// TODO: emit_stray_packets
 	auto * ip_channel = create_map<map_packet_acceptor>(gmapid_t(virt->channel_id, DOWNLINK_IP_MAPID));
 
 	phys->finalize();

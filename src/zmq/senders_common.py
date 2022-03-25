@@ -18,8 +18,11 @@ _log = logging.getLogger(__name__)
 class SenderCore:
 
     @staticmethod
-    def setup_log():
-        logging.basicConfig(level=logging.INFO, format='%(asctime)-15s %(levelname)s %(message)s')
+    def setup_log(level=None):
+        if level is None:
+            level = logging.INFO
+
+        logging.basicConfig(level=level, format='%(asctime)-15s %(levelname)s %(message)s')
 
     def __init__(self, app_name: str):
         self.args = None
