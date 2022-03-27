@@ -1,0 +1,27 @@
+new_tab first
+layout grid
+
+launch --env ITS_GBUS_BPCS_ENDPOINT=tcp://localhost:7778 --env ITS_GBUS_BSCP_ENDPOINT=tcp://localhost:7777 --hold "./rpi/ccsds-link-build/debug/server-uslp/server-uslp" "-v 1"
+
+launch --hold sudo ITS_GBUS_BPCS_ENDPOINT=tcp://localhost:7778 ITS_GBUS_BSCP_ENDPOINT=tcp://localhost:7777 "./rpi/ccsds-link-build/debug/server-tun/server-tun" -v 1 --tun tun100 --addr 10.0.0.1/24 --mtu 200
+
+launch --env ITS_GBUS_BPCS_ENDPOINT=tcp://localhost:7778 --env ITS_GBUS_BSCP_ENDPOINT=tcp://localhost:7777 --hold python3 "./zmq/broker.py" "--no-log"
+
+launch --env ITS_GBUS_BPCS_ENDPOINT=tcp://localhost:7778 --env ITS_GBUS_BSCP_ENDPOINT=tcp://localhost:7777 --hold "./zmq/imitator_radio.py" "--uplink-bind=0.0.0.0:2222" "--uplink-connect=localhost:2223" "--block-irssi" "--block-stats"
+
+#launch --env ITS_GBUS_BPCS_ENDPOINT=tcp://localhost:7778 --env ITS_GBUS_BSCP_ENDPOINT=tcp://localhost:7777 --cwd ./zmq /usr/bin/bash
+
+
+# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+new_tab second
+layout grid
+
+launch --env ITS_GBUS_BPCS_ENDPOINT=tcp://localhost:7770 --env ITS_GBUS_BSCP_ENDPOINT=tcp://localhost:7771 --hold "./rpi/ccsds-link-build/debug/server-uslp/server-uslp" "-v 1"
+
+launch --hold sudo ITS_GBUS_BPCS_ENDPOINT=tcp://localhost:7770 ITS_GBUS_BSCP_ENDPOINT=tcp://localhost:7771 "./rpi/ccsds-link-build/debug/server-tun/server-tun" -v 1 --tun tun200 --addr 10.0.0.2/24 --mtu 200
+
+launch --env ITS_GBUS_BPCS_ENDPOINT=tcp://localhost:7770 --env ITS_GBUS_BSCP_ENDPOINT=tcp://localhost:7771 --hold python3 "./zmq/broker.py" "--no-log"
+
+launch --env ITS_GBUS_BPCS_ENDPOINT=tcp://localhost:7770 --env ITS_GBUS_BSCP_ENDPOINT=tcp://localhost:7771 --hold "./zmq/imitator_radio.py" "--uplink-bind=0.0.0.0:2223" "--uplink-connect=localhost:2222" "--block-irssi" "--block-stats"
+
+#launch --env ITS_GBUS_BPCS_ENDPOINT=tcp://localhost:7770 --env ITS_GBUS_BSCP_ENDPOINT=tcp://localhost:7771 --cwd ./zmq /usr/bin/bash

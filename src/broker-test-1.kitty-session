@@ -2,8 +2,6 @@ layout grid
 
 launch --env ITS_GBUS_BPCS_ENDPOINT=tcp://localhost:7778 --env ITS_GBUS_BSCP_ENDPOINT=tcp://localhost:7777 --hold "./rpi/ccsds-link-build/debug/server-uslp/server-uslp" "-v 1"
 
-launch --hold sudo ITS_GBUS_BPCS_ENDPOINT=tcp://localhost:7778 ITS_GBUS_BSCP_ENDPOINT=tcp://localhost:7777 "./rpi/ccsds-link-build/debug/server-tun/server-tun" "-v 1"
-
 launch --env ITS_GBUS_BPCS_ENDPOINT=tcp://localhost:7778 --env ITS_GBUS_BSCP_ENDPOINT=tcp://localhost:7777 --hold python3 "./zmq/broker.py" "--no-log"
 
 launch --env ITS_GBUS_BPCS_ENDPOINT=tcp://localhost:7778 --env ITS_GBUS_BSCP_ENDPOINT=tcp://localhost:7777 --hold "./zmq/imitator_radio.py" "--uplink-bind=0.0.0.0:2222" "--uplink-connect=localhost:2222" "--block-irssi" "--block-stats"

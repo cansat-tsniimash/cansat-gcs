@@ -16,8 +16,11 @@ from its_logfile import LogfileWriter
 LOGFILE_FLUSH_PERIOD = 1
 
 
-ITS_GBUS_BPCS_ENDPOINT = "tcp://0.0.0.0:7778"
-ITS_GBUS_BSCP_ENDPOINT = "tcp://0.0.0.0:7777"
+ITS_GBUS_BPCS_ENDPOINT = os.environ.get("ITS_GBUS_BPCS_ENDPOINT", "tcp://0.0.0.0:7778")
+ITS_GBUS_BSCP_ENDPOINT = os.environ.get("ITS_GBUS_BSCP_ENDPOINT", "tcp://0.0.0.0:7777")
+
+ITS_GBUS_BPCS_ENDPOINT = ITS_GBUS_BPCS_ENDPOINT.replace("localhost", "0.0.0.0")
+ITS_GBUS_BSCP_ENDPOINT = ITS_GBUS_BSCP_ENDPOINT.replace("localhost", "0.0.0.0")
 
 
 _log = logging.getLogger(__name__)

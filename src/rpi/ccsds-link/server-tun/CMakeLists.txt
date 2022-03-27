@@ -5,7 +5,8 @@ project(its-server-tun
 	LANGUAGES C CXX
 )
 
-find_package(Threads REQUIRED)
+#find_package(Threads REQUIRED)
+find_package(Boost COMPONENTS program_options REQUIRED)
 
 
 add_executable(server-tun
@@ -34,4 +35,5 @@ target_link_libraries(server-tun
 PRIVATE
 	zmq
 	ccsds::epp
+	Boost::program_options
 )
