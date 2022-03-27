@@ -9,6 +9,7 @@
 
 struct downlink_packet
 {
+	bool bad;
 	std::vector<uint8_t> data;
 };
 
@@ -34,23 +35,31 @@ public:
 
 	void swap(zmq_server & other);
 
+	void set_uplink_channel(int sc_id, int vc_id, int map_id);
+	void set_downlink_channel(int sc_id, int vc_id, int map_id);
 	void attach_to_context(zmq::context_t * ctx);
 
 	void open();
 	void open(const std::string & bpcs_endpoint, const std::string & bscp_endpoint);
 	void close();
 
-	void pop_downlink_packet(downlink_packet packet);
-	void push_uplink_packet(uplink_packet & packet);
+	void recv_downlink_packet(downlink_packet & packet);
+	void send_uplink_packet(const uplink_packet & packet);
 
-	void * bpcs_handle() { return _bpcs_socket.handle(); }
-	void * bscp_handle() { return _bscp_socket.handle(); }
-
-protected:
-	void subscribe(const std::string & topic);
-	void unsubscribe(const std::string & topic);
+	zmq::socket_t & bpcs_socket() { return _bpcs_socket; }
+	zmq::socket_t & bscp_socket() { return _bscp_socket; }
 
 private:
+	int _uplink_sc_id = 0;
+	int _uplink_vc_id = 0;
+	int _uplink_map_id = 0;
+
+	int _downlink_sc_id = 0;
+	int _downlink_vc_id = 0;
+	int _downlink_map_id = 0;
+
+	uint64_t _uplink_cookie = 0;
+
 	zmq::context_t * _ctx;
 
 	zmq::socket_t _bpcs_socket;

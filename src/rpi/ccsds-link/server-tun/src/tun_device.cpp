@@ -91,7 +91,7 @@ void tun_device::open(std::string name)
 	// Создаем себе интерфейс
 	struct ifreq ifr;
 	std::memset(&ifr, 0x00, sizeof(ifr));
-	ifr.ifr_flags = IFF_TUN;
+	ifr.ifr_flags = IFF_TUN | IFF_NO_PI;
 	assert(name.size() < IFNAMSIZ);
 	std::strncpy(ifr.ifr_name, name.c_str(), IFNAMSIZ);
 

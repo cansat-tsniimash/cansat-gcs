@@ -25,7 +25,7 @@ target_include_directories(server-tun PRIVATE libs)
 
 set_target_properties(server-tun
 PROPERTIES
-	CXX_STANDARD 11
+	CXX_STANDARD 17
 	CXX_STANDARD_REQUIRED YES
 	CXX_EXTENSIONS NO
 )
@@ -33,4 +33,5 @@ PROPERTIES
 target_link_libraries(server-tun
 PRIVATE
 	zmq
+	ccsds::epp
 )
