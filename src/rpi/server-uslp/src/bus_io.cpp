@@ -9,6 +9,8 @@
 #include <ccsds/uslp/events.hpp>
 #include <ccsds/epp/epp_header.hpp>
 
+static auto _slg = build_source("bus-io");
+
 
 #define ITS_GBUS_TOPIC_DOWNLINK_SDU "uslp.downlink_sdu"
 #define ITS_GBUS_TOPIC_UPLINK_SDU_REQUEST "uslp.uplink_sdu_request"
@@ -91,7 +93,7 @@ static std::string _qos_to_string(ccsds::uslp::qos_t qos)
 		return "sequence_controlled";
 	else
 	{
-		LOG_S(ERROR) << "invalid qos enum value " << static_cast<int>(qos);
+		LOG(error) << "invalid qos enum value " << static_cast<int>(qos);
 		throw std::invalid_argument("invalid qos enum value");
 	}
 }
@@ -105,7 +107,7 @@ static ccsds::uslp::qos_t _qos_from_string(const std::string & string)
 		return ccsds::uslp::qos_t::SEQUENCE_CONTROLLED;
 	else
 	{
-		LOG_S(ERROR) << "invalid qos string value \"" << string << "\"";
+		LOG(error) << "invalid qos string value \"" << string << "\"";
 		throw std::invalid_argument("invalid qos string value");
 	}
 }
@@ -149,10 +151,10 @@ void bus_io::connect_bpcs(const std::string & endpoint)
 {
 	_sub_socket = zmq::socket_t(_ctx, zmq::socket_type::sub);
 
-	LOG_S(INFO) << "connection BPCS to \"" << endpoint << "\"";
+	LOG(info) << "connecting BPCS to \"" << endpoint << "\"";
 	_sub_socket.connect(endpoint);
 
-	LOG_S(INFO) << "subscribing to topics";
+	LOG(info) << "subscribing to topics";
 	_sub_socket.set(zmq::sockopt::subscribe, ITS_GBUS_TOPIC_UPLINK_SDU_REQUEST);
 	_sub_socket.set(zmq::sockopt::subscribe, ITS_GBUS_TOPIC_DOWNLINK_FRAME);
 	_sub_socket.set(zmq::sockopt::subscribe, ITS_GBUS_TOPIC_UPLINK_STATE);
@@ -161,7 +163,7 @@ void bus_io::connect_bpcs(const std::string & endpoint)
 
 void bus_io::connect_bscp(const std::string & endpoint)
 {
-	LOG_S(INFO) << "connection BSCP to \"" << endpoint << "\"";
+	LOG(info) << "connection BSCP to \"" << endpoint << "\"";
 
 	_pub_socket = zmq::socket_t(_ctx, zmq::socket_type::pub);
 	_pub_socket.connect(endpoint);
@@ -177,7 +179,7 @@ void bus_io::close()
 
 void bus_io::send_message(const sdu_downlink & message)
 {
-	LOG_S(INFO+2) << "sending 'SDU accepted' bus message";
+	LOG(trace) << "sending 'SDU accepted' bus message";
 
 	const std::string topic = ITS_GBUS_TOPIC_DOWNLINK_SDU;
 
@@ -202,7 +204,7 @@ void bus_io::send_message(const sdu_downlink & message)
 
 void bus_io::send_message(const sdu_uplink_event & message)
 {
-	LOG_S(INFO+2) << "sending uplink sdu event bus message";
+	LOG(trace) << "sending uplink sdu event bus message";
 
 	const std::string topic = ITS_GBUS_TOPIC_UPLINK_SDU_EVENT;
 
@@ -230,7 +232,7 @@ void bus_io::send_message(const sdu_uplink_event & message)
 
 void bus_io::send_message(const radio_uplink_frame & message)
 {
-	LOG_S(INFO+2) << "sending uplink frame bus message";
+	LOG(trace) << "sending uplink frame bus message";
 
 	const std::string topic = ITS_GBUS_TOPIC_UPLINK_FRAME;
 
@@ -255,15 +257,15 @@ std::unique_ptr<bus_input_message> bus_io::recv_message()
 	auto result = _sub_socket.recv(topic_msg);
 	if (0 == result)
 	{
-		LOG_S(ERROR) << "got empty topic message";
+		LOG(error) << "got empty topic message";
 		return nullptr;
 	}
 
 	const std::string topic(reinterpret_cast<char*>(topic_msg.data()), topic_msg.size());
-	LOG_S(INFO+2) << "got msg topic \"" << topic << "\"";
+	LOG(trace) << "got msg topic \"" << topic << "\"";
 	if (!topic_msg.more())
 	{
-		LOG_S(ERROR) << "there is no zmq message parts after topic";
+		LOG(error) << "there is no zmq message parts after topic";
 		throw std::runtime_error("there is no message parts after topic");
 	}
 
@@ -271,11 +273,11 @@ std::unique_ptr<bus_input_message> bus_io::recv_message()
 	result = _sub_socket.recv(metadata_msg);
 	if (0 == result)
 	{
-		LOG_S(ERROR) << "got empty message metadata";;
+		LOG(error) << "got empty message metadata";;
 		return nullptr;
 	}
 	const std::string raw_metadata(reinterpret_cast<char*>(metadata_msg.data()), metadata_msg.size());
-	LOG_S(INFO+2) << "raw metadata as follows " << raw_metadata;
+	LOG(trace) << "raw metadata as follows " << raw_metadata;
 	const auto metadata = nlohmann::json::parse(raw_metadata);
 
 	// Гребем пейлоад, если он есть
@@ -289,23 +291,23 @@ std::unique_ptr<bus_input_message> bus_io::recv_message()
 			const auto * data_begin = reinterpret_cast<const uint8_t*>(payload_msg.data());
 			const auto * data_end = data_begin + payload_msg.size();;
 			payload.assign(data_begin, data_end);
-			LOG_S(INFO+2) << "got payload of size " << payload.size();
+			LOG(trace) << "got payload of size " << payload.size();
 		}
 		else
 		{
-			LOG_S(WARNING) << "message have a zero size payload";
+			LOG(warning) << "message have a zero size payload";
 		}
 	}
 	else
 	{
-		LOG_S(INFO+2) << "this message have no payload";
+		LOG(trace) << "this message have no payload";
 	}
 
 	// Сливаем что там осталось
 	zmq::message_t flush = std::move(payload_msg);
 	while(flush.more())
 	{
-		LOG_S(WARNING) << "flushing extra message data";
+		LOG(warning) << "flushing extra message data";
 		auto result = _sub_socket.recv(flush);
 	}
 
@@ -315,27 +317,27 @@ std::unique_ptr<bus_input_message> bus_io::recv_message()
 		if (topic == ITS_GBUS_TOPIC_UPLINK_SDU_REQUEST)
 		{
 			retval = parse_sdu_uplink_request_message(preparsed_message{metadata, std::move(payload)});
-			LOG_S(INFO+1) << "got an uplink sdu request message";
+			LOG(debug) << "got an uplink sdu request message";
 		}
 		else if (topic == ITS_GBUS_TOPIC_DOWNLINK_FRAME)
 		{
 			retval = parse_downlink_frame_message(preparsed_message{metadata, std::move(payload)});
-			LOG_S(INFO+1) << "got a downlink frame message";
+			LOG(debug) << "got a downlink frame message";
 		}
 		else if (topic == ITS_GBUS_TOPIC_UPLINK_STATE)
 		{
 			retval = parse_radio_uplink_state_message(preparsed_message{metadata, std::move(payload)});
-			LOG_S(INFO+2) << "got a radio uplink state message";
+			LOG(trace) << "got a radio uplink state message";
 		}
 		else
 		{
-			LOG_S(ERROR) << "unknown topic received";
+			LOG(error) << "unknown topic received";
 			retval = nullptr;
 		}
 	}
 	catch (std::exception & e)
 	{
-		LOG_S(ERROR) << "unable to parse message of topic " << topic << ": " << e.what();
+		LOG(error) << "unable to parse message of topic " << topic << ": " << e.what();
 		retval = nullptr;
 	}
 
@@ -358,7 +360,7 @@ bool bus_io::poll_sub_socket(std::chrono::milliseconds timeout)
 	{
 		if (e.num() == EINTR)
 		{
-			LOG_S(INFO) << "poll interrupted by syscall";
+			LOG(info) << "poll interrupted by syscall";
 			return false;
 		}
 

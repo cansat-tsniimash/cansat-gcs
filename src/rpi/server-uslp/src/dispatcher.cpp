@@ -7,6 +7,9 @@
 #include "log.hpp"
 
 
+static auto _slg = build_source("dispatcher");
+
+
 // Период пола событий на сокете (мс)
 #define ITS_DISPATCHER_POLL_PERIOD 1000
 
@@ -22,9 +25,9 @@ void dispatcher::poll()
 {
 	const auto timeout = std::chrono::milliseconds(ITS_DISPATCHER_POLL_PERIOD);
 
-	LOG_S(INFO+2) << "entering poll cycle";
+	LOG(trace) << "entering poll cycle";
 	const bool have_msgs = _io.poll_sub_socket(timeout);
-	LOG_S(INFO+2) << "poll complete with " << have_msgs;
+	LOG(trace) << "poll complete with " << have_msgs;
 
 	if (have_msgs)
 	{
@@ -35,7 +38,7 @@ void dispatcher::poll()
 		}
 		else
 		{
-			LOG_S(INFO+2) << "unable to read message?";
+			LOG(trace) << "unable to read message?";
 		}
 	}
 }
@@ -43,7 +46,7 @@ void dispatcher::poll()
 
 void dispatcher::_on_map_sdu_event(const ccsds::uslp::acceptor_event_map_sdu & event)
 {
-	LOG_S(INFO+1) << "got downlink map sdu frame on gmapid " << event.channel_id;
+	LOG(info) << "got downlink map sdu frame on gmapid " << event.channel_id;
 
 	// Собираем сообщение
 	sdu_downlink message;
@@ -79,7 +82,7 @@ void dispatcher::_dispatch_bus_message(const bus_input_message & message)
 		break;
 
 	default:
-		LOG_S(ERROR) << "unknown bus message type: " << to_string(message.kind);
+		LOG(error) << "unknown bus message type: " << to_string(message.kind);
 		break;
 	}
 }
@@ -87,7 +90,7 @@ void dispatcher::_dispatch_bus_message(const bus_input_message & message)
 
 void dispatcher::_on_sdu_uplink_request(const sdu_uplink_request & request)
 {
-	LOG_S(INFO+1) << "got sdu uplink request for " << request.gmapid << ", "
+	LOG(debug) << "got sdu uplink request for " << request.gmapid << ", "
 			<< "cookie " << request.cookie
 	;
 
@@ -108,7 +111,7 @@ void dispatcher::_on_sdu_uplink_request(const sdu_uplink_request & request)
 				request.cookie, request.data.data(), request.data.size(), request.qos
 		);
 
-		LOG_S(INFO+1) << "accepted sdu uplink request for " << request.gmapid << ", "
+		LOG(debug) << "accepted sdu uplink request for " << request.gmapid << ", "
 				<< "cookie: " << request.cookie
 		;
 
@@ -124,7 +127,7 @@ void dispatcher::_on_sdu_uplink_request(const sdu_uplink_request & request)
 	}
 	catch (std::exception & e)
 	{
-		LOG_S(ERROR) << "SDU for " << request.gmapid << ", "
+		LOG(error) << "SDU for " << request.gmapid << ", "
 				<< "cookie: " << request.cookie << " "
 				<< "rejected: " << e.what()
 		;
@@ -144,28 +147,28 @@ void dispatcher::_on_sdu_uplink_request(const sdu_uplink_request & request)
 
 void dispatcher::_on_radio_downlink_frame(const radio_downlink_frame & frame)
 {
-	LOG_S(INFO+1) << "got radio downlink frame " << frame.frame_cookie;
+	LOG(info) << "got radio downlink frame " << frame.frame_cookie;
 	try
 	{
 		// Что там с контрольной суммой?
 		if (!frame.checksum_valid)
-			LOG_S(WARNING) << "downlink frame with invalid checksum";
+			LOG(warning) << "downlink frame with invalid checksum";
 
 		// Что там с номером пакета?
 		if (_prev_rf_frame_no && *_prev_rf_frame_no + 1 != frame.frame_no)
 		{
-			LOG_S(WARNING) << "frame no is unexpected. "
+			LOG(warning) << "frame no is unexpected. "
 				<< "Expected " << *_prev_rf_frame_no + 1 << ", got " << frame.frame_no;
 		}
 		_prev_rf_frame_no = frame.frame_no;
 
 		// Наконец то кормим фрейм в радио
 		_istack.push_frame(frame.data.data(), frame.data.size());
-		LOG_S(INFO+1) << "accepted radio downlink frame cookie " << frame.frame_cookie;
+		LOG(debug) << "accepted radio downlink frame cookie " << frame.frame_cookie;
 	}
 	catch (std::exception & e)
 	{
-		LOG_S(ERROR) << "unable to receive radio frame " << frame.frame_cookie << ": "
+		LOG(error) << "unable to receive radio frame " << frame.frame_cookie << ": "
 				<< e.what();
 	}
 }
@@ -173,7 +176,7 @@ void dispatcher::_on_radio_downlink_frame(const radio_downlink_frame & frame)
 
 void dispatcher::_on_radio_uplink_state(const radio_uplink_state & state)
 {
-	LOG_S(INFO+2) << "got radio uplink state";
+	LOG(trace) << "got radio uplink state";
 	try
 	{
 		// Смотрим, не ждем ли мы каких событий с уже отправленной строкой
@@ -187,7 +190,7 @@ void dispatcher::_on_radio_uplink_state(const radio_uplink_state & state)
 			{
 				for (const auto & sdu_cookie: sent_part_sdu_cookies)
 				{
-					LOG_S(INFO+2) << "radiated payload part, mapid: " << sent_gmapid << ", "
+					LOG(trace) << "radiated payload part, mapid: " << sent_gmapid << ", "
 							<< "cookie: " << sdu_cookie.cookie << ", "
 							<< "part: " << sdu_cookie.part_no // << " "
 							<< (sdu_cookie.final ? " (final)" : "")
@@ -204,7 +207,7 @@ void dispatcher::_on_radio_uplink_state(const radio_uplink_state & state)
 			{
 				for (const auto & sdu_cookie: sent_part_sdu_cookies)
 				{
-					LOG_S(INFO+2) << "radiation failed. Payload part, mapid: " << sent_gmapid << ", "
+					LOG(trace) << "radiation failed. Payload part, mapid: " << sent_gmapid << ", "
 							<< "cookie: " << sdu_cookie.cookie << ", "
 							<< "part: " << sdu_cookie.part_no // << " "
 							<< (sdu_cookie.final ? " (final)" : "")
@@ -224,12 +227,12 @@ void dispatcher::_on_radio_uplink_state(const radio_uplink_state & state)
 		if (!state.cookie_in_wait.has_value())
 		{
 			// Можем!
-			LOG_S(INFO+2) << "radio is ready to accept frame!";
+			LOG(trace) << "radio is ready to accept frame!";
 			ccsds::uslp::pchannel_frame_params_t frame_params;
 			const bool output_frame_ready = _ostack.peek_frame(frame_params);
 			if (output_frame_ready)
 			{
-				LOG_S(INFO+1) << "ccsds stack is ready to emit frame for "
+				LOG(trace) << "ccsds stack is ready to emit frame for "
 						<< "channel " << frame_params.channel_id << ", "
 						<< "ccsds frame no " << (frame_params.frame_seq_no
 									? std::to_string(frame_params.frame_seq_no->value())
@@ -255,16 +258,16 @@ void dispatcher::_on_radio_uplink_state(const radio_uplink_state & state)
 						frame_params.payload_cookies
 				);
 
-				LOG_S(INFO+1) << "sent frame to radio";
+				LOG(trace) << "sent frame to radio";
 			}
 			else
 			{
-				LOG_S(INFO+2) << "ccsds stack is not ready to emit frame";
+				LOG(trace) << "CCSDS stack is not ready to emit frame";
 			}
 		}
 	}
 	catch (std::exception & e)
 	{
-		LOG_S(ERROR) << "unable to process radio uplink state message: " << e.what();
+		LOG(error) << "unable to process radio uplink state message: " << e.what();
 	}
 }

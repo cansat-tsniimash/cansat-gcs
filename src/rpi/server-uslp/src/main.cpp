@@ -11,6 +11,9 @@
 #include "stack.hpp"
 
 
+static auto _slg = build_source("main");
+
+
 #define ITS_BSCP_ENDPOINT_KEY "ITS_GBUS_BSCP_ENDPOINT"
 #define ITS_BPCS_ENDPOINT_KEY "ITS_GBUS_BPCS_ENDPOINT"
 
@@ -75,7 +78,7 @@ static int real_main(int argc, char ** argv)
 	}
 	catch (std::exception & e)
 	{
-		LOG_S(ERROR) << "unable to load config: " << e.what();
+		LOG(error) << "unable to load config: " << e.what();
 		return EXIT_FAILURE;
 	}
 
@@ -98,17 +101,17 @@ static int real_main(int argc, char ** argv)
 	{
 		if (signal_catched.load())
 		{
-			LOG_S(INFO) << "got signal " << signal_value << " stooping loop";
+			LOG(info) << "got signal " << signal_value << " stooping loop";
 			break;
 		}
 
 		d.poll();
 	}
 
-	LOG_S(INFO) << "terminating gracefully";
+	LOG(info) << "terminating gracefully";
 	io.close();
 	ctx.close();
-	LOG_S(INFO) << "termination complete";
+	LOG(info) << "termination complete";
 
 	return EXIT_SUCCESS;
 }
@@ -116,16 +119,6 @@ static int real_main(int argc, char ** argv)
 
 int main(int argc, char ** argv)
 {
-	loguru::g_preamble_thread = false;
-	//loguru::g_preamble_file = false;
-	//loguru::g_preamble_verbose = false;
-	loguru::g_preamble_time = false;
-	loguru::g_preamble_date = false;
-	loguru::g_preamble_uptime = false;
-	loguru::g_colorlogtostderr = true;
-
-	loguru::init(argc, argv);
-
 	int rc = EXIT_SUCCESS;
 	try
 	{
@@ -133,12 +126,12 @@ int main(int argc, char ** argv)
 	}
 	catch (std::exception & e)
 	{
-		LOG_S(ERROR) << "failure! " << e.what();
+		LOG(error) << "failure! " << e.what();
 		// Бросаем дальше, чтобы увидеть стектрейс от логуру
 		throw;
 	}
 
-	LOG_S(INFO) << "shutting down gracefully";
+	LOG(info) << "shutting down gracefully";
 	return rc;
 }
 
