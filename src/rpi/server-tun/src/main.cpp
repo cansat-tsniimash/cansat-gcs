@@ -11,6 +11,9 @@
 
 #include "log.hpp"
 
+static auto _slg = build_source("main");
+
+
 #define TUN_BUFFER_SIZE 1500
 
 
@@ -77,7 +80,7 @@ static void loop(zmq_server & server, tun_device & tun)
 			{ const_cast<void*>(sub_socket.handle()), 0, ZMQ_POLLIN, 0 }
 	}};
 
-	LOG_S(INFO+2) << "entering poll cycle";
+	LOG(trace) << "entering poll cycle";
 	int rc = zmq::poll(poll_items, std::chrono::milliseconds(500));
 	if (0 == rc)
 		return;
@@ -85,12 +88,12 @@ static void loop(zmq_server & server, tun_device & tun)
 	if (poll_items[0].revents & ZMQ_POLLIN)
 	{
 		// Что-то пришло с туннеля
-		LOG_S(INFO+1) << "got event from tun device";
+		LOG(debug) << "got event from tun device";
 
 		std::vector<uint8_t> tun_buffer(1500);
 		const size_t readed = tun.read_packet(tun_buffer.data(), tun_buffer.size());
 		if (readed > tun_buffer.size())
-			LOG_S(ERROR) << "tun device provided larger packet that we can handle";
+			LOG(error) << "tun device provided larger packet that we can handle";
 
 		tun_buffer.resize(readed);
 		uint16_t flags = 0;
@@ -106,7 +109,7 @@ static void loop(zmq_server & server, tun_device & tun)
 		else
 			LOG_S(ERROR) << "tun device provided less than 4 bytes, there is no PI";
 		*/
-		LOG_S(INFO+1) << "there is a tun packet of size "
+		LOG(debug) << "there is a tun packet of size "
 				<< tun_buffer.size() << ", "
 				// << "proto " << proto << ","
 				// << "flags " << flags
@@ -121,13 +124,13 @@ static void loop(zmq_server & server, tun_device & tun)
 	if (poll_items[1].revents & ZMQ_POLLIN)
 	{
 		// Что-то пришло с шины
-		LOG_S(INFO+1) << "got event from bus";
+		LOG(debug) << "got event from bus";
 
 		downlink_packet message;
 		server.recv_downlink_packet(message);
 		if (message.bad)
 		{
-			LOG_S(INFO+1) << "message is bad";
+			LOG(debug) << "message is bad";
 		}
 		else
 		{
@@ -139,15 +142,7 @@ static void loop(zmq_server & server, tun_device & tun)
 
 int main(int argc, char ** argv)
 {
-	loguru::g_preamble_thread = false;
-	//loguru::g_preamble_file = false;
-	//loguru::g_preamble_verbose = false;
-	loguru::g_preamble_time = false;
-	loguru::g_preamble_date = false;
-	loguru::g_preamble_uptime = false;
-	loguru::g_colorlogtostderr = true;
-
-	loguru::init(argc, argv);
+	setup_log();
 
 	// Эти опции мы разберем из argv
 	std::string tun_name = "tun100";
@@ -211,7 +206,7 @@ int main(int argc, char ** argv)
 	}
 	catch (std::exception & e)
 	{
-		LOG_S(ERROR) << "unable to parse options: " << e.what();
+		LOG(error) << "unable to parse options: " << e.what();
 		return EXIT_FAILURE;
 	}
 
@@ -228,7 +223,7 @@ int main(int argc, char ** argv)
 	}
 	catch (std::exception & e)
 	{
-		LOG_S(ERROR) << "unable to start ZMQ server: " << e.what();
+		LOG(error) << "unable to start ZMQ server: " << e.what();
 		return EXIT_FAILURE;
 	}
 
@@ -241,7 +236,7 @@ int main(int argc, char ** argv)
 	}
 	catch (std::exception & e)
 	{
-		LOG_S(ERROR) << "unable to start tun device: " << e.what();
+		LOG(error) << "unable to start tun device: " << e.what();
 		return EXIT_FAILURE;
 	}
 
@@ -253,7 +248,7 @@ int main(int argc, char ** argv)
 		}
 		catch (std::exception & e)
 		{
-			LOG_S(ERROR) << "loop failed with error " << e.what();
+			LOG(error) << "loop failed with error " << e.what();
 		}
 	}
 

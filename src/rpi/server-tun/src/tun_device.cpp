@@ -17,6 +17,8 @@
 
 #include "log.hpp"
 
+static auto _slg = build_source("tun-device");
+
 
 struct fd_sentry
 {
@@ -79,7 +81,7 @@ void tun_device::open(std::string name)
 		throw std::invalid_argument(stream.str());
 	}
 
-	VLOG_S(INFO) << "opening TUN device \"" << name << "\"";
+	LOG(info) << "opening TUN device \"" << name << "\"";
 
 	// Добираемся до clonedev
 	int clone_dev_fd = ::open("/dev/net/tun", O_RDWR);
@@ -102,7 +104,7 @@ void tun_device::open(std::string name)
 	_fd = sentry.release();
 	_name = ifr.ifr_name;
 
-	VLOG_S(INFO) << "TUN device opened as \"" << _name << "\"";
+	LOG(info) << "TUN device opened as \"" << _name << "\"";
 	// Готово!
 }
 
@@ -118,7 +120,7 @@ void tun_device::close()
 	if (_fd < 0)
 		return;
 
-	VLOG_S(DEBUG) << "closing TUN device \"" << _name << "\"";
+	LOG(debug) << "closing TUN device \"" << _name << "\"";
 
 	::close(_fd);
 	_fd = -1;
@@ -131,7 +133,7 @@ void tun_device::set_ip(const std::string & ip, int mask_size)
 	if (!is_open())
 		throw std::runtime_error("device is not open");
 
-	VLOG_S(INFO) << "setting if \"" << _name << "\" IP to " << ip << "/" << mask_size;
+	LOG(info) << "setting if \"" << _name << "\" IP to " << ip << "/" << mask_size;
 
 	int socket_fd = ::socket(AF_INET, SOCK_DGRAM, 0);
 	if (socket_fd < 0)
@@ -175,7 +177,7 @@ void tun_device::set_up(bool up)
 	if (!is_open())
 		throw std::runtime_error("device is not open");
 
-	VLOG_S(INFO) << "setting if \"" << _name << "\" " << (up ? "up" : "down");
+	LOG(info) << "setting if \"" << _name << "\" " << (up ? "up" : "down");
 
 	int socket_fd = ::socket(AF_INET, SOCK_DGRAM, 0);
 	if (socket_fd < 0)
@@ -207,7 +209,7 @@ void tun_device::set_mtu(int mtu)
 	if (!is_open())
 		throw std::runtime_error("device is not open");
 
-	VLOG_S(INFO) << "setting if \"" << _name << "\" MTU to " << mtu;
+	LOG(info) << "setting if \"" << _name << "\" MTU to " << mtu;
 
 	int socket_fd = ::socket(AF_INET, SOCK_DGRAM, 0);
 	if (socket_fd < 0)

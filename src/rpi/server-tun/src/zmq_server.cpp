@@ -10,13 +10,15 @@
 #include "log.hpp"
 
 
+static auto _slg = build_source("zmq-server");
+
+
 #define ITS_BSCP_ENDPOINT_KEY "ITS_GBUS_BSCP_ENDPOINT"
 #define ITS_BPCS_ENDPOINT_KEY "ITS_GBUS_BPCS_ENDPOINT"
 
 #define ITS_GBUS_TOPIC_DOWNLINK_SDU "uslp.downlink_sdu"
 #define ITS_GBUS_TOPIC_UPLINK_SDU_REQUEST "uslp.uplink_sdu_request"
 #define ITS_GBUS_TOPIC_UPLINK_SDU_EVENT "uslp.uplink_sdu_event"
-
 
 
 zmq_server::zmq_server()
@@ -68,7 +70,7 @@ void zmq_server::set_uplink_channel(int sc_id, int vc_id, int map_id)
 	_uplink_vc_id = vc_id;
 	_uplink_map_id = map_id;
 
-	LOG_S(INFO) << "using uplink channel " << sc_id << "," << vc_id << "," << map_id;
+	LOG(info) << "using uplink channel " << sc_id << "," << vc_id << "," << map_id;
 }
 
 
@@ -78,7 +80,7 @@ void zmq_server::set_downlink_channel(int sc_id, int vc_id, int map_id)
 	_downlink_vc_id = vc_id;
 	_downlink_map_id = map_id;
 
-	LOG_S(INFO) << "using downlink channel " << sc_id << "," << vc_id << "," << map_id;
+	LOG(info) << "using downlink channel " << sc_id << "," << vc_id << "," << map_id;
 }
 
 
@@ -97,7 +99,7 @@ void zmq_server::open()
 
 	if (bscp == nullptr)
 	{
-		LOG_S(ERROR) << "unable to fetch BSCP endpoint address name from envvar "
+		LOG(error) << "unable to fetch BSCP endpoint address name from envvar "
 				<< ITS_BPCS_ENDPOINT_KEY;
 
 		throw std::runtime_error("unable to fetch BSCP endpoint address");
@@ -105,7 +107,7 @@ void zmq_server::open()
 
 	if (bpcs == nullptr)
 	{
-		LOG_S(ERROR) << "unable to fetch BPCS endpoint address name from envvar "
+		LOG(error) << "unable to fetch BPCS endpoint address name from envvar "
 				<< ITS_BSCP_ENDPOINT_KEY;
 
 		throw std::runtime_error("unable to fetch BPCS endpoint address");
@@ -120,11 +122,11 @@ void zmq_server::open(const std::string & bpcs_endpoint, const std::string & bsc
 	assert(_ctx != nullptr);
 
 	_bpcs_socket = zmq::socket_t(*_ctx, ZMQ_SUB);
-	LOG_S(INFO) << "connecting BPCS socket to " << bpcs_endpoint;
+	LOG(info) << "connecting BPCS socket to " << bpcs_endpoint;
 	_bpcs_socket.connect(bpcs_endpoint.c_str());
 
 	_bscp_socket = zmq::socket_t(*_ctx, ZMQ_PUB);
-	LOG_S(INFO) << "connecting BSCP socket to " << bscp_endpoint;
+	LOG(info) << "connecting BSCP socket to " << bscp_endpoint;
 	_bscp_socket.connect(bscp_endpoint.c_str());
 
 	// Подписываемся на единственное интересное нам сообщение
@@ -160,7 +162,7 @@ void zmq_server::recv_downlink_packet(downlink_packet & packet)
 		zmq::message_t flusher;
 		do
 		{
-			LOG_S(WARNING) << "there is unexpected 'more' parts of zmq message";
+			LOG(warning) << "there is unexpected 'more' parts of zmq message";
 			rv = _bpcs_socket.recv(flusher);
 		} while (flusher.more());
 	}
@@ -170,10 +172,10 @@ void zmq_server::recv_downlink_packet(downlink_packet & packet)
 	const char * topic_data_begin = reinterpret_cast<const char*>(topic_msg.data());
 	const std::string_view topic(topic_data_begin, topic_msg.size());
 
-	LOG_S(INFO+2) << "got message with topic \"" << topic << "\"";
+	LOG(debug) << "got message with topic \"" << topic << "\"";
 	if (ITS_GBUS_TOPIC_DOWNLINK_SDU != topic)
 	{
-		LOG_S(ERROR) << "got unexpected topic \"" << topic << "\"";
+		LOG(error) << "got unexpected topic \"" << topic << "\"";
 		throw std::runtime_error("unexpected message topic");
 	}
 
@@ -190,7 +192,7 @@ void zmq_server::recv_downlink_packet(downlink_packet & packet)
 
 	if (sc_id != _downlink_sc_id || vc_id != _downlink_vc_id || map_id != _downlink_map_id)
 	{
-		LOG_S(INFO+1) << "this packet is for channel "
+		LOG(debug) << "this packet is for channel "
 				<< sc_id << "," << vc_id << "," << map_id << " "
 				<< "while "
 				<< _downlink_sc_id << "," << _downlink_vc_id << "," << _downlink_map_id << " "
@@ -207,7 +209,7 @@ void zmq_server::recv_downlink_packet(downlink_packet & packet)
 		{
 			if (baddie == flag.get<std::string_view>())
 			{
-				LOG_S(INFO) << "sdu got \"" << baddie << "\" flag";
+				LOG(info) << "sdu got \"" << baddie << "\" flag";
 				bad_packet = true;
 				goto breakout;
 			}
@@ -230,7 +232,7 @@ breakout:
 		ccsds::epp::header_t header;
 		header.read(data_begin, data_end - data_begin);
 
-		LOG_S(INFO) << "got a epp packet PID " << header.protocol_id << " "
+		LOG(info) << "got a EPP packet PID " << static_cast<int>(header.protocol_id) << " "
 				<< "of size " << header.payload_size()
 		;
 
@@ -238,11 +240,11 @@ breakout:
 		std::advance(data_begin, header.size());
 		// Проверим размер на всякий
 		if (header.payload_size() != (data_end - data_begin))
-			LOG_S(WARNING) << "bad size in epp packet header";
+			LOG(warning) << "bad size in epp packet header";
 	}
 	else
 	{
-		LOG_S(WARNING) << "got packet with bad epp header";
+		LOG(warning) << "got packet with bad epp header";
 		bad_packet = true;
 	}
 
@@ -268,8 +270,6 @@ void zmq_server::send_uplink_packet(const uplink_packet & packet)
 	};
 	const std::string metadata = j.dump();
 
-	LOG_S(INFO) << "sending uplink sdu cookie " << j["cookie"];
-
 	// Дорисовываем epp заголовок
 	ccsds::epp::header_t header;
 	header.protocol_id = static_cast<int>(ccsds::epp::protocol_id_t::IPE);
@@ -278,6 +278,9 @@ void zmq_server::send_uplink_packet(const uplink_packet & packet)
 	std::vector<uint8_t> data(header.size());
 	header.write(data.begin(), data.end());
 	data.insert(data.end(), packet.data.begin(), packet.data.end());
+
+	LOG(info) << "sending uplink sdu cookie " << j["cookie"] << " "
+			<< "of size " << header.payload_size();
 
 	_bscp_socket.send(zmq::const_buffer(topic.data(), topic.size()), zmq::send_flags::sndmore);
 	_bscp_socket.send(zmq::const_buffer(metadata.data(), metadata.size()), zmq::send_flags::sndmore);

@@ -6,8 +6,9 @@ project(its-server-uslp
 )
 
 
+#find_package(Threads REQUIRED)
 find_package(Boost COMPONENTS log program_options REQUIRED)
-find_package(Threads REQUIRED)
+
 
 add_executable(server-uslp
 	src/bus_io.hpp
@@ -42,9 +43,9 @@ PRIVATE
 
 target_link_libraries(server-uslp
 PRIVATE
-	Threads::Threads
+#	Threads::Threads
 	Boost::log
-#	Boost::program_options
+	Boost::program_options
 	zmq
 	ccsds::uslp
 )

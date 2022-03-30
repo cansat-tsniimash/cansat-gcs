@@ -6,7 +6,7 @@ project(its-server-tun
 )
 
 #find_package(Threads REQUIRED)
-find_package(Boost COMPONENTS program_options REQUIRED)
+find_package(Boost COMPONENTS log program_options REQUIRED)
 
 
 add_executable(server-tun
@@ -15,10 +15,10 @@ add_executable(server-tun
 	src/tun_device.cpp
 	src/zmq_server.hpp
 	src/zmq_server.cpp
-	
+	src/log.hpp
+	src/log.cpp
+		
 	libs/json.hpp
-	libs/loguru.hpp
-	libs/loguru.cpp
 )
 
 target_compile_definitions(server-tun PRIVATE LOGURU_WITH_STREAMS)
@@ -33,7 +33,8 @@ PROPERTIES
 
 target_link_libraries(server-tun
 PRIVATE
+	Boost::program_options
+	Boost::log
 	zmq
 	ccsds::epp
-	Boost::program_options
 )

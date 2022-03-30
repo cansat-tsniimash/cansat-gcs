@@ -45,12 +45,12 @@ class RadioServerImitator:
 
     ZMQ_POLL_TIMEOUT = 0.001
     """ Максимальное время, которое мы будем реально спать в ожидании сообщений на шине """
-    FRAME_RECV_TIME = 0.200
+    FRAME_RECV_TIME = 0.100
     """ Время, имитации приёма фрейма. Поступающие фреймы будут разгребваться не чаще """
-    FRAME_TRANSMIT_TIME = 0.400
+    FRAME_TRANSMIT_TIME = 0.100
     """ Время отправки uplink фреймов """
 
-    LISTEN_PERIOD = 5
+    LISTEN_PERIOD = 0.5
     """ Время ожидания пакета в эфире """
 
     INSTANT_RSSI_PERIOD = 0.100
