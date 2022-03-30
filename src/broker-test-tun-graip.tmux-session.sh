@@ -38,5 +38,4 @@ tmux send-keys \
 	"--tun tun200 --addr 10.0.0.1/24 --mtu 200" Space \
 	Enter
 
-
 tmux a -t uslp

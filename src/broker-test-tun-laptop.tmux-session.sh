@@ -15,7 +15,7 @@ BUILD_DIR="$1"
 tmux new-session -d -n server-uslp -s uslp
 #tmux set-option remain-on-exit on
 tmux send-keys \
-	"${BUILD_DIR}/server-uslp/server-uslp" Space \
+	"${BUILD_DIR%/}/server-uslp/server-uslp" Space \
 	Enter
 
 tmux split-window -v
