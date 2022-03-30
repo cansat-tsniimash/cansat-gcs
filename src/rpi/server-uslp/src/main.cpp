@@ -71,6 +71,8 @@ static config get_config(int argc, char ** argv)
 
 static int real_main(int argc, char ** argv)
 {
+	setup_log();
+
 	config c;
 	try
 	{

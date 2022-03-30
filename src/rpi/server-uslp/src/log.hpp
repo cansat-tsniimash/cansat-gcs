@@ -12,33 +12,35 @@
 #include <boost/log/expressions/keyword.hpp>
 
 
+#define LOG(level) BOOST_LOG_SEV(_slg, severity_level::level)
+
+
 enum class severity_level
 {
-	error = 0,
-	warning,
-	info,
+	trace = 0,
 	debug,
-	trace,
+	info,
+	warning,
+	error,
 
 	invalid_last
 };
 
-std::ostream & operator << (std::ostream & stream, severity_level level);
-std::istream & operator >> (std::istream & stream, severity_level & level);
-std::string to_string(severity_level level);
-
 
 BOOST_LOG_ATTRIBUTE_KEYWORD(severity, "Severity", severity_level);
 
+
+std::ostream & operator << (std::ostream & stream, severity_level level);
+std::istream & operator >> (std::istream & stream, severity_level & level);
+std::string to_string(severity_level level);
+severity_level severity_level_from_string(const std::string & level_str);
+
 typedef boost::log::sources::severity_channel_logger<severity_level> source_t;
 
-
-#define LOG(level) BOOST_LOG_SEV(_slg, severity_level::level)
+source_t build_source(std::string channel_name);
 
 
 void setup_log();
-
-source_t build_source(std::string channel_name);
 
 
 #endif /* ITS_SERVER_USLP_SRC_LOG_HPP_ */

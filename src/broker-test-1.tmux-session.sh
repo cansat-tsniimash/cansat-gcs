@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-
 if [[ -z "$1" ]] ; then
 	echo "Нужно указать каталог сборки для запуска оттуда всех бинарников"
 	exit 1
@@ -8,6 +7,7 @@ fi
 
 export ITS_GBUS_BPCS_ENDPOINT=tcp://localhost:7778
 export ITS_GBUS_BSCP_ENDPOINT=tcp://localhost:7777
+export ITS_LOG_LEVEL=info
 
 THIS_DIR=`dirname "$0"`
 BUILD_DIR="$1"
@@ -25,8 +25,8 @@ tmux send-keys \
 
 tmux split-window -h \
 	"${THIS_DIR}/zmq/imitator_radio.py" \
-	"--uplink-bind=10.30.10.10:2222" \
-	"--uplink-connect=10.30.10.10:2222" \
+	"--uplink-bind=localhost:2222" \
+	"--uplink-connect=localhost:2222" \
 	"--block-irssi" \
 	"--block-stats"
 

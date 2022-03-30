@@ -154,7 +154,7 @@ void bus_io::connect_bpcs(const std::string & endpoint)
 	LOG(info) << "connecting BPCS to \"" << endpoint << "\"";
 	_sub_socket.connect(endpoint);
 
-	LOG(info) << "subscribing to topics";
+	LOG(debug) << "subscribing to topics";
 	_sub_socket.set(zmq::sockopt::subscribe, ITS_GBUS_TOPIC_UPLINK_SDU_REQUEST);
 	_sub_socket.set(zmq::sockopt::subscribe, ITS_GBUS_TOPIC_DOWNLINK_FRAME);
 	_sub_socket.set(zmq::sockopt::subscribe, ITS_GBUS_TOPIC_UPLINK_STATE);

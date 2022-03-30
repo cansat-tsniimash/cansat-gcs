@@ -46,7 +46,8 @@ void dispatcher::poll()
 
 void dispatcher::_on_map_sdu_event(const ccsds::uslp::acceptor_event_map_sdu & event)
 {
-	LOG(info) << "got downlink map sdu frame on gmapid " << event.channel_id;
+	LOG(info) << "got downlink map SDU on gmapid " << event.channel_id << " "
+			<< event.data.size() << " bytes";
 
 	// Собираем сообщение
 	sdu_downlink message;
@@ -90,7 +91,7 @@ void dispatcher::_dispatch_bus_message(const bus_input_message & message)
 
 void dispatcher::_on_sdu_uplink_request(const sdu_uplink_request & request)
 {
-	LOG(debug) << "got sdu uplink request for " << request.gmapid << ", "
+	LOG(debug) << "got SDU uplink request for " << request.gmapid << ", "
 			<< "cookie " << request.cookie
 	;
 
@@ -111,7 +112,7 @@ void dispatcher::_on_sdu_uplink_request(const sdu_uplink_request & request)
 				request.cookie, request.data.data(), request.data.size(), request.qos
 		);
 
-		LOG(debug) << "accepted sdu uplink request for " << request.gmapid << ", "
+		LOG(info) << "accepted SDU uplink request for " << request.gmapid << ", "
 				<< "cookie: " << request.cookie
 		;
 
@@ -147,22 +148,14 @@ void dispatcher::_on_sdu_uplink_request(const sdu_uplink_request & request)
 
 void dispatcher::_on_radio_downlink_frame(const radio_downlink_frame & frame)
 {
-	LOG(info) << "got radio downlink frame " << frame.frame_cookie;
+	LOG(trace) << "got radio downlink frame " << frame.frame_cookie;
 	try
 	{
 		// Что там с контрольной суммой?
 		if (!frame.checksum_valid)
 			LOG(warning) << "downlink frame with invalid checksum";
 
-		// Что там с номером пакета?
-		if (_prev_rf_frame_no && *_prev_rf_frame_no + 1 != frame.frame_no)
-		{
-			LOG(warning) << "frame no is unexpected. "
-				<< "Expected " << *_prev_rf_frame_no + 1 << ", got " << frame.frame_no;
-		}
-		_prev_rf_frame_no = frame.frame_no;
-
-		// Наконец то кормим фрейм в радио
+		// Наконец то кормим фрейм в стек
 		_istack.push_frame(frame.data.data(), frame.data.size());
 		LOG(debug) << "accepted radio downlink frame cookie " << frame.frame_cookie;
 	}
@@ -190,7 +183,7 @@ void dispatcher::_on_radio_uplink_state(const radio_uplink_state & state)
 			{
 				for (const auto & sdu_cookie: sent_part_sdu_cookies)
 				{
-					LOG(trace) << "radiated payload part, mapid: " << sent_gmapid << ", "
+					LOG(info) << "radiated payload part, mapid: " << sent_gmapid << ", "
 							<< "cookie: " << sdu_cookie.cookie << ", "
 							<< "part: " << sdu_cookie.part_no // << " "
 							<< (sdu_cookie.final ? " (final)" : "")
@@ -207,7 +200,7 @@ void dispatcher::_on_radio_uplink_state(const radio_uplink_state & state)
 			{
 				for (const auto & sdu_cookie: sent_part_sdu_cookies)
 				{
-					LOG(trace) << "radiation failed. Payload part, mapid: " << sent_gmapid << ", "
+					LOG(error) << "radiation failed. Payload part, mapid: " << sent_gmapid << ", "
 							<< "cookie: " << sdu_cookie.cookie << ", "
 							<< "part: " << sdu_cookie.part_no // << " "
 							<< (sdu_cookie.final ? " (final)" : "")
@@ -232,7 +225,7 @@ void dispatcher::_on_radio_uplink_state(const radio_uplink_state & state)
 			const bool output_frame_ready = _ostack.peek_frame(frame_params);
 			if (output_frame_ready)
 			{
-				LOG(trace) << "ccsds stack is ready to emit frame for "
+				LOG(debug) << "ccsds stack is ready to emit frame for "
 						<< "channel " << frame_params.channel_id << ", "
 						<< "ccsds frame no " << (frame_params.frame_seq_no
 									? std::to_string(frame_params.frame_seq_no->value())
@@ -258,7 +251,7 @@ void dispatcher::_on_radio_uplink_state(const radio_uplink_state & state)
 						frame_params.payload_cookies
 				);
 
-				LOG(trace) << "sent frame to radio";
+				LOG(debug) << "sent frame to radio";
 			}
 			else
 			{
