@@ -35,6 +35,7 @@ public:
 
 private:
 	std::unique_ptr<sdu_uplink_request> parse_sdu_uplink_request_message(
+			std::string_view topic,
 			const preparsed_message & message
 	);
 	std::unique_ptr<radio_downlink_frame> parse_downlink_frame_message(

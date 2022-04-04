@@ -130,7 +130,15 @@ void zmq_server::open(const std::string & bpcs_endpoint, const std::string & bsc
 	_bscp_socket.connect(bscp_endpoint.c_str());
 
 	// Подписываемся на единственное интересное нам сообщение
-	_bpcs_socket.set(zmq::sockopt::subscribe, ITS_GBUS_TOPIC_DOWNLINK_SDU);
+	std::stringstream topic_stream;
+	topic_stream << ITS_GBUS_TOPIC_DOWNLINK_SDU << "."
+			<< _downlink_sc_id << "."
+			<< _downlink_vc_id << "."
+			<< _downlink_map_id
+	;
+	const std::string topic = topic_stream.str();
+	LOG(info) << "subscribing to \"" << topic << "\"";
+	_bpcs_socket.set(zmq::sockopt::subscribe, topic);
 }
 
 
@@ -173,7 +181,15 @@ void zmq_server::recv_downlink_packet(downlink_packet & packet)
 	const std::string_view topic(topic_data_begin, topic_msg.size());
 
 	LOG(debug) << "got message with topic \"" << topic << "\"";
-	if (ITS_GBUS_TOPIC_DOWNLINK_SDU != topic)
+	const std::string_view desired_topic(ITS_GBUS_TOPIC_DOWNLINK_SDU);
+	if (topic.size() < desired_topic.size())
+	{
+		LOG(error) << "unexpected topic: \"" << topic << "\"";
+		throw std::runtime_error("unexpected message topic");
+	}
+
+	const auto topic_in_size_of_desired = topic.substr(0, desired_topic.size());
+	if (desired_topic != topic_in_size_of_desired)
 	{
 		LOG(error) << "got unexpected topic \"" << topic << "\"";
 		throw std::runtime_error("unexpected message topic");
@@ -186,20 +202,7 @@ void zmq_server::recv_downlink_packet(downlink_packet & packet)
 	const auto j = nlohmann::json::parse(meta);
 
 	// Проверяем что это пакет для нас
-	const auto sc_id = j["sc_id"].get<int>();
-	const auto vc_id = j["vchannel_id"].get<int>();
-	const auto map_id = j["map_id"].get<int>();
-
-	if (sc_id != _downlink_sc_id || vc_id != _downlink_vc_id || map_id != _downlink_map_id)
-	{
-		LOG(debug) << "this packet is for channel "
-				<< sc_id << "," << vc_id << "," << map_id << " "
-				<< "while "
-				<< _downlink_sc_id << "," << _downlink_vc_id << "," << _downlink_map_id << " "
-				<< "was expected"
-		;
-		bad_packet = true;
-	}
+	//   Доверяем zmq в наших подписках
 
 	// Провеяем флаги
 	const char * bad_flags[] = { "idle", "corrupted", "incomplete", "stray" };
@@ -255,7 +258,14 @@ breakout:
 
 void zmq_server::send_uplink_packet(const uplink_packet & packet)
 {
-	const std::string topic = ITS_GBUS_TOPIC_UPLINK_SDU_REQUEST;
+	std::stringstream topic_stream;
+	topic_stream << ITS_GBUS_TOPIC_UPLINK_SDU_REQUEST << "."
+			<< _uplink_sc_id << "."
+			<< _uplink_vc_id << "."
+			<< _uplink_map_id
+	;
+	const std::string topic = topic_stream.str();
+
 	nlohmann::json j;
 	j["sc_id"] = _uplink_sc_id;
 	j["vchannel_id"] = _uplink_vc_id;
@@ -279,7 +289,7 @@ void zmq_server::send_uplink_packet(const uplink_packet & packet)
 	header.write(data.begin(), data.end());
 	data.insert(data.end(), packet.data.begin(), packet.data.end());
 
-	LOG(info) << "sending uplink sdu cookie " << j["cookie"] << " "
+	LOG(info) << "sending uplink SDU cookie " << j["cookie"] << " "
 			<< "of size " << header.payload_size();
 
 	_bscp_socket.send(zmq::const_buffer(topic.data(), topic.size()), zmq::send_flags::sndmore);

@@ -243,7 +243,8 @@ def main(args):
 
     _log.info("using payload %s", data)
 
-    core.pub_message("uslp.uplink_sdu_request", metadata, data)
+    topic = "uslp.uplink_sdu_request.%d-%d-%d" % (args.sc_id, args.vc_id, args.map_id)
+    core.pub_message(topic, metadata, data)
     time.sleep(0.2)
     core.close()
     return 0

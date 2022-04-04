@@ -6,7 +6,10 @@
 
 #include <thread>
 
+#include <boost/algorithm/string.hpp>
+
 #include <ccsds/uslp/events.hpp>
+#include <ccsds/uslp/common/ids_io.hpp>
 #include <ccsds/epp/epp_header.hpp>
 
 static auto _slg = build_source("bus-io");
@@ -125,8 +128,53 @@ static std::string _uplink_sdu_event_kind_to_string(sdu_uplink_event::event_kind
 	};
 
 	std::stringstream error;
-	error << "invalid sdu uplink event kind: \"" << std::to_string(static_cast<int>(kind)) << "\"";
+	error << "invalid SDU uplink event kind: \"" << std::to_string(static_cast<int>(kind)) << "\"";
 	throw std::invalid_argument(error.str());
+}
+
+
+static std::string _channel_id_to_topic(const std::string & topic_base, ccsds::uslp::gmapid_t ch_id)
+{
+	std::stringstream stream;
+	stream << topic_base << "."
+		<< static_cast<int>(ch_id.sc_id()) << "."
+		<< static_cast<int>(ch_id.vchannel_id()) << "."
+		<< static_cast<int>(ch_id.map_id())
+	;
+	return stream.str();
+}
+
+
+static ccsds::uslp::gmapid_t _channel_id_from_topic(const std::string_view topic)
+{
+	std::vector<std::string> parts;
+	boost::algorithm::split(parts, topic, boost::is_any_of("."), boost::token_compress_on);
+
+	if (parts.size() < 3)
+		throw std::invalid_argument("bad topic for channel id extraction: " + std::string(topic));
+
+	try
+	{
+		const int sc_id = std::stoi(parts[parts.size()-3], 0, 0);
+		const int vc_id = std::stoi(parts[parts.size()-2], 0, 0);
+		const int map_id = std::stoi(parts[parts.size()-1], 0, 0);
+		return ccsds::uslp::gmapid_t(sc_id, vc_id, map_id);
+	}
+	catch (std::exception & e)
+	{
+		std::throw_with_nested(
+				std::invalid_argument("bad topic for channel id extraction: " + std::string(topic))
+		);
+	}
+}
+
+bool _starts_with(std::string_view left, std::string_view right)
+{
+	if (left.size() < right.size())
+		return false;
+
+	const std::string_view left_in_size_of_right = left.substr(0, right.size());
+	return left_in_size_of_right == right;
 }
 
 
@@ -181,7 +229,7 @@ void bus_io::send_message(const sdu_downlink & message)
 {
 	LOG(trace) << "sending 'SDU accepted' bus message";
 
-	const std::string topic = ITS_GBUS_TOPIC_DOWNLINK_SDU;
+	const std::string topic = _channel_id_to_topic(ITS_GBUS_TOPIC_DOWNLINK_SDU, message.gmapid);
 
 	nlohmann::json j;
 	j["sc_id"] = message.gmapid.mcid().sc_id();
@@ -206,7 +254,7 @@ void bus_io::send_message(const sdu_uplink_event & message)
 {
 	LOG(trace) << "sending uplink sdu event bus message";
 
-	const std::string topic = ITS_GBUS_TOPIC_UPLINK_SDU_EVENT;
+	const std::string topic = _channel_id_to_topic(ITS_GBUS_TOPIC_UPLINK_SDU_EVENT, message.gmapid);
 
 	nlohmann::json j;
 	j["sc_id"] = message.gmapid.mcid().sc_id();
@@ -314,9 +362,9 @@ std::unique_ptr<bus_input_message> bus_io::recv_message()
 	std::unique_ptr<bus_input_message> retval;
 	try
 	{
-		if (topic == ITS_GBUS_TOPIC_UPLINK_SDU_REQUEST)
+		if (_starts_with(topic, ITS_GBUS_TOPIC_UPLINK_SDU_REQUEST))
 		{
-			retval = parse_sdu_uplink_request_message(preparsed_message{metadata, std::move(payload)});
+			retval = parse_sdu_uplink_request_message(topic, preparsed_message{metadata, std::move(payload)});
 			LOG(debug) << "got an uplink sdu request message";
 		}
 		else if (topic == ITS_GBUS_TOPIC_DOWNLINK_FRAME)
@@ -372,9 +420,12 @@ bool bus_io::poll_sub_socket(std::chrono::milliseconds timeout)
 
 std::unique_ptr<sdu_uplink_request>
 bus_io::parse_sdu_uplink_request_message(
+		std::string_view topic,
 		const preparsed_message & message
 )
 {
+	const ccsds::uslp::gmapid_t topic_ch_id = _channel_id_from_topic(topic);
+
 	// разгребаем выгребенное
 	const nlohmann::json & j = message.metadata;
 	const auto sc_id = _get_or_die<int>(j, "sc_id");
@@ -393,6 +444,14 @@ bus_io::parse_sdu_uplink_request_message(
 	retval->qos = qos;
 
 	retval->data = std::move(message.payload);
+
+	if (topic_ch_id != retval->gmapid)
+	{
+		LOG(warning) << "channel id missmatch for sdu uplink request. "
+				<< "in topic: " << topic_ch_id << "; in metadata: " << retval->gmapid << " "
+				<< "assuming right one in metadata"
+		;
+	}
 
 	return retval;
 }
