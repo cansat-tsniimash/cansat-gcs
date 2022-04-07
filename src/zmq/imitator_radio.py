@@ -19,7 +19,6 @@ from senders_common import SenderCore
 _log = logging.getLogger(__name__)
 
 
-
 @dataclass
 class RadioStats:
 
@@ -157,7 +156,7 @@ class RadioServerImitator:
             data = self.uplink_socket.recv(0xFFFF)
             frame_no, = struct.unpack("<H", data[:2])
             payload = data[2:]
-            _log.info("got frame %s from uplink", frame_no)
+            _log.info("got frame %s from udp", frame_no)
             self.send_downlink_frame(payload=payload, checksum_valid=True, frame_no=frame_no)
 
         # На этом все
@@ -174,6 +173,7 @@ class RadioServerImitator:
         data = bytes(self.uplink_buffer)
         self.uplink_buffer = bytes()
         data = struct.pack("<H", self.uplink_frame_no) + data
+        sent_frame_number = self.uplink_frame_no
         self.uplink_frame_no = (self.uplink_frame_no + 1) % 0xFFFF
         self.uplink_in_progress = self.uplink_in_wait
         self.uplink_in_wait = None
@@ -187,6 +187,10 @@ class RadioServerImitator:
         self.uplink_done = self.uplink_in_progress
         self.uplink_in_progress = None
         self.send_uplink_state()
+        _log.info(
+            "sent uplink frame to udp. Cookie: %s, frame number %s",
+            self.uplink_done, sent_frame_number
+        )
 
         # На этом всё
         return True
@@ -235,7 +239,8 @@ class RadioServerImitator:
         ]
 
         self.pub_socket.send_multipart(message)
-        _log.info("sent downlink_frame %s" , message)
+        _log.info("sent downlink_frame, frame_no: %s", frame_no)
+        _log.debug("frame %s", message)
 
         # Тепеь добрасываем rssi пакет отдельно
         metadata = {
@@ -336,7 +341,12 @@ class RadioServerImitator:
         meta = json.loads(meta)
 
         cookie = meta["cookie"]
-        _log.info("got uplink frame request %s", message)
+        _log.info("got uplink frame request, cookie: %s", cookie)
+        _log.debug("uplink frame %s", message)
+
+        if self.uplink_buffer or self.uplink_in_wait is not None:
+            _log.error("UPLINK BUFFER OVERFLOW")
+
         self.uplink_in_wait = cookie
         self.uplink_buffer = payload
         self.send_uplink_state()
@@ -367,6 +377,15 @@ def main(argv):
         "--block-stats", action='store_true', dest='block_stats',
         help='block radio stats messages'
     )
+    core.arg_parser.add_argument(
+        "--rx-time", nargs='?', type=float, default=0.2, dest="rx_time",
+        help="radio rx operation length in seconds"
+    )
+    core.arg_parser.add_argument(
+        "--tx-time", nargs='?', type=float, default=0.2, dest="tx_time",
+        help="radio tx operation length in seconds"
+    )
+
     core.parse_args(argv)
     core.connect_sockets()
 
@@ -386,6 +405,8 @@ def main(argv):
         sub_socket=sub_socket, pub_socket=pub_socket,
         uplink_socket=uplink_socket
     )
+    radio.FRAME_RECV_TIME = core.args.rx_time
+    radio.FRAME_TRANSMIT_TIME = core.args.tx_time
     radio.block_irssi = core.args.block_irssi
     radio.block_stats = core.args.block_stats
 

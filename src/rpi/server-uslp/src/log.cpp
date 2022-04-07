@@ -148,7 +148,7 @@ void setup_log()
 
 	boost::shared_ptr<std::ostream> cout_ptr(&std::cout, [](std::ostream*){});
 	sink->locked_backend()->add_stream(cout_ptr);
-
+	sink->locked_backend()->auto_flush(true);
 
 	formatter_t formatter;
 	if (isatty(1)) // 0 stdint, 1 stdout, 2 stderr/stdlog
