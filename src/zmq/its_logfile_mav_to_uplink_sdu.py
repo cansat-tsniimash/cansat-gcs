@@ -97,6 +97,7 @@ def main(argv):
                 _log.info("sending %s %s" % (last_msg_time, m.get_type()))
                 msgbuf = m.get_msgbuf()
                 epp_header = EppHeader()
+                epp_header.protocol_id = EppProtocolId.PRIVATE
                 epp_header.accomodate_to_payload_size(len(msgbuf))
                 payload = epp_header.write() + msgbuf
 

@@ -186,7 +186,7 @@ class RadioServerImitator:
         self.uplink_in_progress = None
         self.send_uplink_state()
         _log.info(
-            "sent uplink frame to udp. Cookie: %s, frame number %s",
+            "sent uplink frame to udp. Cookie: %s, frame no %s",
             self.uplink_done, sent_frame_number
         )
 

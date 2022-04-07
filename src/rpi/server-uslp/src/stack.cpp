@@ -56,8 +56,11 @@ istack::istack()
 
 	auto * telemetry_channel = create_map<map_packet_acceptor>(gmapid_t(virt->channel_id, DOWNLINK_TELEMETERY_MAPID));
 	telemetry_channel->emit_idle_packets(false);
-	// TODO: emit_stray_packets
+	telemetry_channel->emit_stray_data(true);
+
 	auto * ip_channel = create_map<map_packet_acceptor>(gmapid_t(virt->channel_id, DOWNLINK_IP_MAPID));
+	ip_channel->emit_idle_packets(false);
+	ip_channel->emit_stray_data(true);
 
 	phys->finalize();
 }

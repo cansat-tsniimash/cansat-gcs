@@ -46,8 +46,35 @@ void dispatcher::poll()
 
 void dispatcher::_on_map_sdu_event(const ccsds::uslp::acceptor_event_map_sdu & event)
 {
-	LOG(info) << "got downlink map SDU on gmapid " << event.channel_id << " "
-			<< event.data.size() << " bytes";
+	std::stringstream flags_stream;
+
+	if (event.flags & ccsds::uslp::acceptor_event_map_sdu::MAPA)
+		flags_stream << "mapa, ";
+
+	if (event.flags & ccsds::uslp::acceptor_event_map_sdu::MAPP)
+		flags_stream << "mapp, ";
+
+	if (event.flags & ccsds::uslp::acceptor_event_map_sdu::INCOMPLETE)
+		flags_stream << "incomplete, ";
+
+	if (event.flags & ccsds::uslp::acceptor_event_map_sdu::IDLE)
+		flags_stream << "idle, ";
+
+	if (event.flags & ccsds::uslp::acceptor_event_map_sdu::CORRUPTED)
+		flags_stream << "corrupted, ";
+
+	if (event.flags & ccsds::uslp::acceptor_event_map_sdu::STRAY)
+		flags_stream << "stray, ";
+
+
+	auto flags_string = flags_stream.str();
+	if (flags_string.size())
+		flags_string.resize(flags_string.size()-2); // Откусываем ", " с хвоста
+
+	LOG(info) << "got downlink map SDU " << event.channel_id << " "
+			<< event.data.size() << " bytes"
+			<< (flags_string.size() ? ("; " + flags_string) : (""))
+	;
 
 	// Собираем сообщение
 	sdu_downlink message;
@@ -112,7 +139,7 @@ void dispatcher::_on_sdu_uplink_request(const sdu_uplink_request & request)
 				request.cookie, request.data.data(), request.data.size(), request.qos
 		);
 
-		LOG(info) << "accepted SDU uplink request for " << request.gmapid << ", "
+		LOG(info) << "accepted SDU uplink " << request.gmapid << ", "
 				<< "cookie: " << request.cookie
 		;
 

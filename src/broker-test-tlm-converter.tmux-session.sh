@@ -50,6 +50,6 @@ tmux send-keys \
 	"-i ${THIS_DIR%/}/zmq/its-broker-log-combined.zmq-log" Space \
 	"--drop-untill 1633357251" Space \
 	"2>&1 | tee sender.log" Space \
-	Enter
+	# Enter
 
 tmux a -t uslp

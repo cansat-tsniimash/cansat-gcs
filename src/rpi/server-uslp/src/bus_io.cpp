@@ -68,13 +68,14 @@ static std::vector<std::string> _downlink_sdu_flags_to_string(uint64_t flags)
 
 	static const std::array<
 		std::tuple<acceptor_event_map_sdu::data_flags_t, std::string>,
-		5
+		6
 	> possible_values = { // @suppress("Invalid arguments")
 			std::make_tuple(acceptor_event_map_sdu::INCOMPLETE, "incomplete"), // @suppress("Invalid arguments")
 			std::make_tuple(acceptor_event_map_sdu::IDLE, "idle"),  // @suppress("Invalid arguments")
 			std::make_tuple(acceptor_event_map_sdu::CORRUPTED, "corrupted"),  // @suppress("Invalid arguments")
 			std::make_tuple(acceptor_event_map_sdu::MAPA, "mapa"),  // @suppress("Invalid arguments")
 			std::make_tuple(acceptor_event_map_sdu::MAPP, "mapp"),  // @suppress("Invalid arguments")
+			std::make_tuple(acceptor_event_map_sdu::STRAY, "stray"),  // @suppress("Invalid arguments")
 	};
 
 	std::vector<std::string> retval;
