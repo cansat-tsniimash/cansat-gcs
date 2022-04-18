@@ -7,7 +7,7 @@ fi
 
 export ITS_GBUS_BPCS_ENDPOINT=tcp://localhost:7778
 export ITS_GBUS_BSCP_ENDPOINT=tcp://localhost:7777
-export ITS_LOG_LEVEL info
+export ITS_LOG_LEVEL=info
 
 THIS_DIR=`dirname "$0"`
 BUILD_DIR="$1"

@@ -93,6 +93,7 @@ static int real_main(int argc, char ** argv)
 	istack ist;
 
 	dispatcher d(ist, ost, io);
+	d.frame_done_timeout(std::chrono::milliseconds(5000));
 
 	signal_catched.store(false);
 	std::signal(SIGTERM, signal_handler);

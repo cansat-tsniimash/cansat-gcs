@@ -41,6 +41,9 @@ void dispatcher::poll()
 			LOG(trace) << "unable to read message?";
 		}
 	}
+
+	// Периодически чистим фреймы по таймауту
+	_clear_frames_queue();
 }
 
 
@@ -199,95 +202,204 @@ void dispatcher::_on_radio_uplink_state(const radio_uplink_state & state)
 	LOG(trace) << "got radio uplink state";
 	try
 	{
-		// Смотрим, не ждем ли мы каких событий с уже отправленной строкой
-		if (_sent_to_rf_frame)
-		{
-			const auto sent_frame_cookie = std::get<0>(*_sent_to_rf_frame);
-			const auto sent_gmapid = std::get<1>(*_sent_to_rf_frame);
-			const auto & sent_part_sdu_cookies = std::get<2>(*_sent_to_rf_frame);
-
-			if (state.cookie_done && sent_frame_cookie == *state.cookie_done)
-			{
-				for (const auto & sdu_cookie: sent_part_sdu_cookies)
-				{
-					LOG(info) << "radiated payload part, mapid: " << sent_gmapid << ", "
-							<< "cookie: " << sdu_cookie.cookie << ", "
-							<< "part: " << sdu_cookie.part_no // << " "
-							<< (sdu_cookie.final ? " (final)" : "")
-					;
-
-					sdu_uplink_event event;
-					event.gmapid = sent_gmapid;
-					event.part_cookie = sdu_cookie;
-					event.event_kind = sdu_uplink_event::event_kind_t::sdu_radiated;
-					_io.send_message(event);
-				}
-			}
-			else if (state.cookie_failed && sent_frame_cookie == *state.cookie_failed)
-			{
-				for (const auto & sdu_cookie: sent_part_sdu_cookies)
-				{
-					LOG(error) << "radiation failed. Payload part, mapid: " << sent_gmapid << ", "
-							<< "cookie: " << sdu_cookie.cookie << ", "
-							<< "part: " << sdu_cookie.part_no // << " "
-							<< (sdu_cookie.final ? " (final)" : "")
-					;
-					sdu_uplink_event event;
-					event.gmapid = sent_gmapid;
-					event.part_cookie = sdu_cookie;
-					event.event_kind = sdu_uplink_event::event_kind_t::sdu_radiation_failed;
-					_io.send_message(event);
-				}
-			}
-			// В любом случае сбрасываем наше ожидание
-			_sent_to_rf_frame = {};
-		}
-
-		// Теперь самое интересное. Смотрим можем ли мы отправлять следующий фрейм!
-		if (!state.cookie_in_wait.has_value())
-		{
-			// Можем!
-			LOG(trace) << "radio is ready to accept frame!";
-			ccsds::uslp::pchannel_frame_params_t frame_params;
-			const bool output_frame_ready = _ostack.peek_frame(frame_params);
-			if (output_frame_ready)
-			{
-				LOG(debug) << "ccsds stack is ready to emit frame for "
-						<< "channel " << frame_params.channel_id << ", "
-						<< "ccsds frame no " << (frame_params.frame_seq_no
-									? std::to_string(frame_params.frame_seq_no->value())
-									: std::string("<no-frame-seq-no>")
-						) //<< ", "
-				; // TODO: написать тут список отправляемых кук?
-
-				// Отправляем!
-				radio_uplink_frame message;
-				message.frame_cookie = _next_rf_uplink_frame_cookie;
-				message.data.resize(RADIO_FRAME_SIZE);
-				_ostack.pop_frame(message.data.data(), message.data.size());
-				_io.send_message(message);
-
-				// К следующему номеру радиокуки
-				if (0 == ++_next_rf_uplink_frame_cookie)
-					_next_rf_uplink_frame_cookie = 1; // ноль запрещен
-
-				// Запоминаем отправленное, чтобы отслеживать его судьбу дальше
-				_sent_to_rf_frame = std::make_tuple( // @suppress("Invalid arguments")
-						message.frame_cookie,
-						frame_params.channel_id,
-						frame_params.payload_cookies
-				);
-
-				LOG(debug) << "sent frame to radio";
-			}
-			else
-			{
-				LOG(trace) << "CCSDS stack is not ready to emit frame";
-			}
-		}
+		_decide_next_uplink_frame(state);
 	}
 	catch (std::exception & e)
 	{
 		LOG(error) << "unable to process radio uplink state message: " << e.what();
 	}
 }
+
+
+void dispatcher::_clear_frames_queue()
+{
+	// Здесь мы будем чистить фреймы с которыми случился таймаут
+	auto itt = _frames_in_wait.begin();
+	while (itt != _frames_in_wait.end())
+	{
+		auto & finfo = *itt;
+		const auto now = std::chrono::steady_clock::now();
+		if (finfo.send_time + _frame_done_timeout > now)
+		{
+			// все ок, пропускаем
+			itt = std::next(itt, 1);
+			continue;
+		}
+
+		for (const auto & sdu_cookie: finfo.sdu_cookies)
+		{
+			LOG(error) << "payload part timed out: " << finfo.sdu_mapid << ", "
+					<< "cookie: " << sdu_cookie.cookie << ", "
+					<< "part: " << sdu_cookie.part_no // << " "
+					<< (sdu_cookie.final ? " (final)" : "")
+			;
+
+			sdu_uplink_event event;
+			event.gmapid = finfo.sdu_mapid;
+			event.part_cookie = sdu_cookie;
+			event.event_kind = sdu_uplink_event::event_kind_t::sdu_radiation_failed;
+			_io.send_message(event);
+		}
+
+		// Удаляем эту фрейм из очереди
+		itt = _frames_in_wait.erase(itt);
+	}
+}
+
+
+void dispatcher::_update_frames_queue(const radio_uplink_state & state)
+{
+	// Пробегаем каждый фрейм, за которым мы следим и смотрим что там с ним происходит
+	auto itt = _frames_in_wait.begin();
+	while(itt != _frames_in_wait.end())
+	{
+		auto & finfo = *itt;
+		if (state.cookie_in_wait && *state.cookie_in_wait == finfo.frame_cookie)
+		{
+			if (finfo.state != frame_queue_entry_t::frame_state_t::in_wait)
+				LOG(debug) << "frame " << finfo.frame_cookie << " went to 'in_wait'";
+
+			finfo.state = frame_queue_entry_t::frame_state_t::in_wait;
+		}
+		if (state.cookie_in_progress && *state.cookie_in_progress == finfo.frame_cookie)
+		{
+			if (finfo.state != frame_queue_entry_t::frame_state_t::in_wait)
+				LOG(debug) << "frame " << finfo.frame_cookie << " went to 'in_progress";
+
+			finfo.state = frame_queue_entry_t::frame_state_t::in_progress;
+		}
+		if (state.cookie_done && *state.cookie_done == finfo.frame_cookie)
+		{
+			LOG(debug) << "frame " << finfo.frame_cookie << " is radiated";
+			finfo.state = frame_queue_entry_t::frame_state_t::radiated;
+
+			for (const auto & sdu_cookie: finfo.sdu_cookies)
+			{
+				LOG(info) << "radiated payload part: " << finfo.sdu_mapid << ", "
+						<< "cookie: " << sdu_cookie.cookie << ", "
+						<< "part: " << sdu_cookie.part_no // << " "
+						<< (sdu_cookie.final ? " (final)" : "")
+				;
+
+				sdu_uplink_event event;
+				event.gmapid = finfo.sdu_mapid;
+				event.part_cookie = sdu_cookie;
+				event.event_kind = sdu_uplink_event::event_kind_t::sdu_radiated;
+				_io.send_message(event);
+			}
+		}
+		if (state.cookie_failed && *state.cookie_failed == finfo.frame_cookie)
+		{
+			LOG(error) << "frame " << finfo.frame_cookie << " radiation failed";
+			finfo.state = frame_queue_entry_t::frame_state_t::failed;
+
+			for (const auto & sdu_cookie: finfo.sdu_cookies)
+			{
+				LOG(error) << "payload part radiation failed: " << finfo.sdu_mapid << ", "
+						<< "cookie: " << sdu_cookie.cookie << ", "
+						<< "part: " << sdu_cookie.part_no // << " "
+						<< (sdu_cookie.final ? " (final)" : "")
+				;
+
+				sdu_uplink_event event;
+				event.gmapid = finfo.sdu_mapid;
+				event.part_cookie = sdu_cookie;
+				event.event_kind = sdu_uplink_event::event_kind_t::sdu_radiation_failed;
+				_io.send_message(event);
+			}
+		}
+
+		// Чистим фреймы, которым в очереди не место
+		switch (finfo.state)
+		{
+		case frame_queue_entry_t::frame_state_t::failed:
+		case frame_queue_entry_t::frame_state_t::radiated:
+			itt = _frames_in_wait.erase(itt);
+			break;
+
+		default:
+			itt = std::next(itt, 1);
+			break;
+		};
+	}
+}
+
+
+void dispatcher::_decide_next_uplink_frame(const radio_uplink_state & state)
+{
+	// Сбрасываем фреймы по таймауту
+	_clear_frames_queue();
+	// Разгребаем что там нам пишло
+	_update_frames_queue(state);
+
+	// Принимаем решение об отправке следующего фрейма
+	if (state.cookie_in_wait.has_value())
+	{
+		// Радио сообщает что его выходной буфер не свободен
+		// Тут наши полномочия все
+		LOG(trace) << "radio is not ready for uplink frame";
+		return;
+	}
+
+	// смотрим нет ли среди ожидающих отправки фреймов кого-то
+	// кто с нашей точки зрения должен лежать в отправном буфере
+	// или находится по пути туда
+	bool can_send = true;
+	for (const auto & finfo: _frames_in_wait)
+	{
+		switch (finfo.state)
+		{
+		case frame_queue_entry_t::frame_state_t::sent_to_radio:
+		case frame_queue_entry_t::frame_state_t::in_wait:
+			can_send = false;
+			goto breakout;
+		}
+	}
+breakout:
+	if (!can_send)
+	{
+		LOG(trace) << "radio is ready for next uplink frame, but it should not be";
+		return;
+	}
+
+	LOG(trace) << "radio is ready to accept frame!";
+	// Мы можем отправлять. Но хотим ли?
+	ccsds::uslp::pchannel_frame_params_t frame_params;
+	const bool output_frame_ready = _ostack.peek_frame(frame_params);
+	if (!output_frame_ready)
+	{
+		LOG(trace) << "CCSDS stack is not ready to emit frame";
+		return;
+	}
+
+	LOG(debug) << "ccsds stack is ready to emit frame for "
+			<< "channel " << frame_params.channel_id << ", "
+			<< "ccsds frame no " << (frame_params.frame_seq_no
+						? std::to_string(frame_params.frame_seq_no->value())
+						: std::string("<no-frame-seq-no>")
+				)
+	;
+
+	// Отправляем!
+	radio_uplink_frame message;
+	message.frame_cookie = _next_rf_uplink_frame_cookie;
+	message.data.resize(RADIO_FRAME_SIZE);
+	_ostack.pop_frame(message.data.data(), message.data.size());
+	_io.send_message(message);
+
+	// К следующему номеру радиокуки
+	if (0 == ++_next_rf_uplink_frame_cookie)
+		_next_rf_uplink_frame_cookie = 1; // ноль запрещен
+
+	// Запоминаем фрейм
+	_frames_in_wait.push_back(frame_queue_entry_t{
+		message.frame_cookie,
+		frame_params.channel_id,
+		frame_params.payload_cookies,
+		std::chrono::steady_clock::now(),
+		frame_queue_entry_t::frame_state_t::sent_to_radio
+	});
+
+	// готово
+}
+
