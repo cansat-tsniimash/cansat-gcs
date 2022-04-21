@@ -32,7 +32,8 @@ int server_config_load(server_config_t * config)
 			.lna_boost = true,
 
 			// Параметры пакетирования
-			.spreading_factor = SX126X_LORA_SF_8,
+			//.spreading_factor = SX126X_LORA_SF_8,
+			.spreading_factor = SX126X_LORA_SF_5,
 			.bandwidth = SX126X_LORA_BW_250,
 			.coding_rate = SX126X_LORA_CR_4_8,
 			.ldr_optimizations = false,
