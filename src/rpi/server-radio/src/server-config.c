@@ -33,9 +33,11 @@ int server_config_load(server_config_t * config)
 
 			// Параметры пакетирования
 			//.spreading_factor = SX126X_LORA_SF_8,
-			.spreading_factor = SX126X_LORA_SF_5,
-			.bandwidth = SX126X_LORA_BW_250,
-			.coding_rate = SX126X_LORA_CR_4_8,
+			.spreading_factor = SX126X_LORA_SF_6,
+			//.bandwidth = SX126X_LORA_BW_250,
+			.bandwidth = SX126X_LORA_BW_500,
+			//.coding_rate = SX126X_LORA_CR_4_8,
+			.coding_rate = SX126X_LORA_CR_4_5,
 			.ldr_optimizations = false,
 	};
 	config->radio_modem_cfg = modem_cfg;
@@ -43,7 +45,8 @@ int server_config_load(server_config_t * config)
 	const sx126x_drv_lora_packet_cfg_t packet_cfg = {
 			.invert_iq = false,
 			.syncword = SX126X_LORASYNCWORD_PRIVATE,
-			.preamble_length = 8,
+			//.preamble_length = 8,
+			.preamble_length = 50,
 			.explicit_header = true,
 			.payload_length = 200,
 			.use_crc = true,
@@ -59,14 +62,14 @@ int server_config_load(server_config_t * config)
 	config->radio_cad_cfg = cad_cfg;
 
 	const sx126x_drv_lora_rx_timeout_cfg_t rx_timeout_cfg = {
-			.stop_timer_on_preamble = false,
-			.lora_symb_timeout = 100, // примерно 250мс при SF8, BW250, CR4/8
+			.stop_timer_on_preamble = true, //false,
+			.lora_symb_timeout = 0 //100, // примерно 250мс при SF8, BW250, CR4/8
 	};
 	config->radio_rx_timeout_cfg = rx_timeout_cfg;
 
 
-	config->rx_timeout_ms = 600;
-	config->rx_timeout_limit_left = 6; // примерно 6*250 = 1500 мс
+	config->rx_timeout_ms = 600; //600;
+	config->rx_timeout_limit_left = 100; // 6; // примерно 6*250 = 1500 мс
 	config->rx_timeout_limit_zabey = config->rx_timeout_limit_left + 120; // Примерно 30*1000 мс
 
 	config->tx_timeout_ms = 0;
@@ -77,7 +80,7 @@ int server_config_load(server_config_t * config)
 	config->tx_state_report_period_ms = 500;
 	config->rssi_report_period_ms = 50;
 	config->radio_stats_report_period_ms = 2000;
-	config->poll_timeout_ms = 50;
+	config->poll_timeout_ms = 1;
 
 	config->extract_frame_number = true;
 
