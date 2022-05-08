@@ -18,7 +18,6 @@ class StatusWidget(QtWidgets.QWidget):
                 self.data_list = data
 
             def appendChild(self, item):
-                print(item)
                 self.childs.append(item)
 
             def child(self, row):
@@ -31,7 +30,7 @@ class StatusWidget(QtWidgets.QWidget):
 
             def row(self):
                 if (self.parent is not None):
-                    return self.parent.index(self)
+                    return self.parent.childs.index(self)
                 return 0
 
             def columnCount(self):
@@ -60,7 +59,6 @@ class StatusWidget(QtWidgets.QWidget):
 
             def __init__(self, cookie, name, status='Undefined', status_type=STATUS_UNKNOWN, parent=None):
                 super().__init__([name], parent)
-                print("lol")
                 self.name = name
                 self.cookie = StatusWidget.StatusModel.TreeItem(["cookie", cookie], parent=self)
                 self.appendChild(self.cookie)
@@ -171,12 +169,9 @@ class StatusWidget(QtWidgets.QWidget):
             else:
                 parentItem = parent.internalPointer()
 
-            print(parentItem.childCount())
             if parentItem.childCount() > 0:
-                print(True)
                 return True
             else:
-                print(False)
                 return False
 
         def columnCount(self, parent):
@@ -257,9 +252,6 @@ class StatusWidget(QtWidgets.QWidget):
                 return QtCore.QModelIndex()
 
             if role == QtCore.Qt.DisplayRole:
-                print(index.row())
-                print(index.column())
-                print(index.internalPointer().data(index.column()))
                 return index.internalPointer().data(index.column())
 
 
@@ -275,7 +267,6 @@ class StatusWidget(QtWidgets.QWidget):
             self.endResetModel()
 
         def update_cmd(self, cookie, status='Undefined', status_type=Command.STATUS_UNKNOWN, stage_id=0, name='Undefined'):
-            print('lollolol')
             for cmd in self.cmd_list:
                 if cmd.get_cookie() == cookie:
                     if cmd.get_stage_id() <= stage_id:
