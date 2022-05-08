@@ -58,15 +58,15 @@ class StatusWidget(QtWidgets.QWidget):
             STATUS_FAILURE = 3
 
             def __init__(self, cookie, name, status='Undefined', status_type=STATUS_UNKNOWN, parent=None):
-                super().__init__([name], parent)
+                super().__init__([name, ""], parent)
                 self.name = name
                 self.cookie = StatusWidget.StatusModel.TreeItem(["cookie", cookie], parent=self)
                 self.appendChild(self.cookie)
                 self.status = StatusWidget.StatusModel.TreeItem(["status", status], parent=self)
                 self.appendChild(self.status)
-                self.start_time = StatusWidget.StatusModel.TreeItem(["start_time", 0], parent=self)
+                self.start_time = StatusWidget.StatusModel.TreeItem(["start_time", self.get_cmd_time_str(0)], parent=self)
                 self.appendChild(self.start_time)
-                self.stop_time = StatusWidget.StatusModel.TreeItem(["stop_time", 0], parent=self)
+                self.stop_time = StatusWidget.StatusModel.TreeItem(["stop_time", self.get_cmd_time_str(0)], parent=self)
                 self.appendChild(self.stop_time)
                 self.set_enabled(True)
                 self.set_status(status)
@@ -88,11 +88,11 @@ class StatusWidget(QtWidgets.QWidget):
             def set_enabled(self, enabled=True):
                 self.enabled = enabled
                 if enabled:
-                    self.start_time.set_data(time.time(), 1)
-                    self.stop_time.set_data(0, 1)
+                    self.start_time.set_data(self.get_cmd_time_str(time.time()), 1)
+                    self.stop_time.set_data(self.get_cmd_time_str(0), 1)
                 else:
-                    if self.stop_time.data(1) == 0:
-                        self.stop_time.set_data(time.time(), 1)
+                    if self.stop_time.data(1) == self.get_cmd_time_str(0):
+                        self.stop_time.set_data(self.get_cmd_time_str(time.time()), 1)
 
             def get_name(self):
                 return self.name
@@ -117,6 +117,12 @@ class StatusWidget(QtWidgets.QWidget):
 
             def get_stop_time(self):
                 return self.stop_time.data(1)
+
+            def get_cmd_time_str(self, cmd_time):
+                if cmd_time > 0:
+                    return time.strftime("%H-%M-%S", time.gmtime(cmd_time))
+                else:
+                    return '..-..-..'
 
 
         def __init__(self, cmd_list=[]):
@@ -251,6 +257,9 @@ class StatusWidget(QtWidgets.QWidget):
             if (not index.isValid()):
                 return QtCore.QModelIndex()
 
+            print(index.column())
+            print(index.row())
+
             if role == QtCore.Qt.DisplayRole:
                 return index.internalPointer().data(index.column())
 
@@ -292,12 +301,6 @@ class StatusWidget(QtWidgets.QWidget):
 
         def get_cmd_list(self):
             return self.cmd_list
-
-        def get_cmd_time_str(self, cmd_time):
-            if cmd_time > 0:
-                return time.strftime("%H-%M-%S", time.gmtime(cmd_time))
-            else:
-                return '..-..-..'
 
         def clear(self):
             self.beginReset()
