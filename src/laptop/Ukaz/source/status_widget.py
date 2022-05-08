@@ -262,6 +262,22 @@ class StatusWidget(QtWidgets.QWidget):
 
             if role == QtCore.Qt.DisplayRole:
                 return index.internalPointer().data(index.column())
+            elif role == QtCore.Qt.BackgroundRole:
+                if isinstance(index.internalPointer(), StatusWidget.StatusModel.Command):
+                    status_type = index.internalPointer().get_status_type()
+                elif isinstance(index.internalPointer().parent, StatusWidget.StatusModel.Command):
+                    status_type = index.internalPointer().parent.get_status_type()
+                else:
+                    status_type = None
+                print(status_type)
+                if status_type == StatusWidget.StatusModel.Command.STATUS_PROCESSING:
+                    return self.background_processing_brush
+                elif status_type == StatusWidget.StatusModel.Command.STATUS_SUCCSESS:
+                    return self.background_success_brush
+                elif status_type == StatusWidget.StatusModel.Command.STATUS_FAILURE:
+                    return self.background_failure_brush
+                else:
+                    return self.background_brush
 
 
         def flags(self, index):
@@ -275,7 +291,7 @@ class StatusWidget(QtWidgets.QWidget):
         def endReset(self):
             self.endResetModel()
 
-        def update_cmd(self, cookie, status='Undefined', status_type=Command.STATUS_UNKNOWN, stage_id=0, name='Undefined'):
+        def update_cmd(self, cookie, status='Undefined', status_type=Command.STATUS_PROCESSING, stage_id=0, name='Undefined'):
             for cmd in self.cmd_list:
                 if cmd.get_cookie() == cookie:
                     if cmd.get_stage_id() <= stage_id:
