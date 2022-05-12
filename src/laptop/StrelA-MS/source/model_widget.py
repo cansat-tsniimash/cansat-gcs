@@ -17,6 +17,28 @@ SCENE_MESH_PATH = os.path.join(RES_ROOT, "models/axis.stl")
 SCENE_MESH_COLOR_PATH = os.path.join(RES_ROOT, "models/axis.mfcl")
 
 class ModelWidget(OpenGL.GLViewWidget):
+    class ModelObject(OpenGL.GLMeshItem())
+    def __init__(self, *args, **kwargs):
+        super(ModelWidget, self).__init__(args, kwargs)
+
+    def set_sourse_id(self, sourse_id):
+        self.sourse_id = sourse_id
+
+    def set_message_id(self, message_id):
+        self.message_id = message_id
+
+    def set_data_fields_id(self, data_fields_id):
+        self.data_fields_id = data_fields_id
+
+    def get_sourse_id(self):
+        return self.sourse_id
+
+    def get_message_id(self):
+        return self.message_id
+
+    def get_data_fields_id(self):
+        return self.data_fields_id
+
     def __init__(self):
         super(ModelWidget, self).__init__()
         self.settings = settings_control.init_settings()
@@ -34,13 +56,17 @@ class ModelWidget(OpenGL.GLViewWidget):
         self.axis = OpenGL.GLAxisItem()
         self.addItem(self.axis)
 
-        self.mesh = OpenGL.GLMeshItem()
+        self.mesh_list = OpenGL.GLMeshItem()
         self.addItem(self.mesh)
 
         self.scene = OpenGL.GLMeshItem()
         self.addItem(self.scene)
 
     def setup_ui_design(self):
+        for mesh in self.mesh_list:
+            self.removeItem(mesh)
+        self.mesh_list = []
+
         self.settings.beginGroup("CentralWidget/ModelWidget/Grid")
         if self.settings.value("is_on") != False:
             self.gird.show()
@@ -59,28 +85,34 @@ class ModelWidget(OpenGL.GLViewWidget):
             self.axis.hide()
         self.settings.endGroup()
 
-        self.settings.beginGroup("CentralWidget/ModelWidget/Mesh")
-        model_color = None
-        try:
-            verts = self._get_mesh_points(self.settings.value("path"))
-            if self.settings.value("Colors/is_on") != False:
-                model_color = self._get_face_colors(self.settings.value("Colors/path"))                
-        except Exception:
-            verts = self._get_mesh_points(MESH_PATH)
-            model_color = self._get_face_colors(MESH_COLOR_PATH)
+        self.settings.beginGroup("CentralWidget/ModelWidget/Meshes")
+        for group in self.settings.childGroups():
+            if self.settings.value(group + "/is_on") != False:
+                self.settings.beginGroup(group)
+            mesh = ModelWidget.ModelObject()
+            
 
-        faces = NumPy.array([(i, i + 1, i + 2,) for i in range(0, len(verts), 3)])
+            model_color = None
+            try:
+                verts = self._get_mesh_points(self.settings.value("path"))
+                if self.settings.value("Colors/is_on") != False:
+                    model_color = self._get_face_colors(self.settings.value("Colors/path"))                
+            except Exception:
+                verts = self._get_mesh_points(MESH_PATH)
+                model_color = self._get_face_colors(MESH_COLOR_PATH)
 
-        self.mesh.setMeshData(vertexes=verts,
-                              faces=faces, 
-                              faceColors=model_color,
-                              edgeColor=(0, 0, 0, 1),
-                              drawEdges=self.settings.value("draw_edges"), 
-                              drawFaces=self.settings.value("draw_faces"),
-                              smooth=self.settings.value("smooth"), 
-                              shader=self.settings.value("shader"), 
-                              computeNormals=self.settings.value("compute_normals"))
-        self.mesh.meshDataChanged()
+            faces = NumPy.array([(i, i + 1, i + 2,) for i in range(0, len(verts), 3)])
+
+            self.mesh.setMeshData(vertexes=verts,
+                                  faces=faces, 
+                                  faceColors=model_color,
+                                  edgeColor=(0, 0, 0, 1),
+                                  drawEdges=self.settings.value("draw_edges"), 
+                                  drawFaces=self.settings.value("draw_faces"),
+                                  smooth=self.settings.value("smooth"), 
+                                  shader=self.settings.value("shader"), 
+                                  computeNormals=self.settings.value("compute_normals"))
+            self.mesh.meshDataChanged()
         self.settings.endGroup()
 
         self.settings.beginGroup("CentralWidget/ModelWidget/Scene")
