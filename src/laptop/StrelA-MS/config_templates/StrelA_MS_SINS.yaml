@@ -434,7 +434,7 @@ CentralWidget:
           Packet:
             sourse_id: '11_0'
             message_id: 'SINS_ISC'
-            quat_field_id: 
+            field_id: 
             - quaternion[0]
             - quaternion[1]
             - quaternion[2]
@@ -455,7 +455,7 @@ CentralWidget:
           Packet:
             sourse_id: '11_0'
             message_id: 'SINS_ISC'
-            quat_field_id: 
+            field_id: 
             - quaternion[0]
             - quaternion[1]
             - quaternion[2]
@@ -475,7 +475,7 @@ CentralWidget:
           Packet:
             sourse_id: '11_0'
             message_id: 'SINS_SUN_RECOUNT'
-            quat_field_id: 
+            field_id: 
             - quaternion[0]
             - quaternion[1]
             - quaternion[2]

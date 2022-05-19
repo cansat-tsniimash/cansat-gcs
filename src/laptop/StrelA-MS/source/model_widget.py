@@ -18,26 +18,35 @@ SCENE_MESH_COLOR_PATH = os.path.join(RES_ROOT, "models/axis.mfcl")
 
 class ModelWidget(OpenGL.GLViewWidget):
     class ModelObject(OpenGL.GLMeshItem())
-    def __init__(self, *args, **kwargs):
-        super(ModelWidget, self).__init__(args, kwargs)
+        MOTION_NO_MOTION = 0
+        MOTION_ROTATION_QUAT = 2
+        def __init__(self, *args, **kwargs):
+            super(ModelWidget, self).__init__(args, kwargs)
+            self.action_mode = self.MOTION_NO_MOTION
 
-    def set_sourse_id(self, sourse_id):
-        self.sourse_id = sourse_id
+        def set_action_mode(self, mode=self.MOTION_NO_MOTION):
+            self.action_mode = mode
 
-    def set_message_id(self, message_id):
-        self.message_id = message_id
+        def get_action_mode(self):
+            return self.action_mode
 
-    def set_data_fields_id(self, data_fields_id):
-        self.data_fields_id = data_fields_id
+        def set_sourse_id(self, sourse_id):
+            self.sourse_id = sourse_id
 
-    def get_sourse_id(self):
-        return self.sourse_id
+        def set_message_id(self, message_id):
+            self.message_id = message_id
 
-    def get_message_id(self):
-        return self.message_id
+        def set_data_fields_id(self, data_fields_id):
+            self.data_fields_id = data_fields_id
 
-    def get_data_fields_id(self):
-        return self.data_fields_id
+        def get_sourse_id(self):
+            return self.sourse_id
+
+        def get_message_id(self):
+            return self.message_id
+
+        def get_data_fields_id(self):
+            return self.data_fields_id
 
     def __init__(self):
         super(ModelWidget, self).__init__()
@@ -56,8 +65,8 @@ class ModelWidget(OpenGL.GLViewWidget):
         self.axis = OpenGL.GLAxisItem()
         self.addItem(self.axis)
 
-        self.mesh_list = OpenGL.GLMeshItem()
-        self.addItem(self.mesh)
+        self.mesh_list = []OpenGL.GLMeshItem()
+        #self.addItem(self.mesh)
 
         self.scene = OpenGL.GLMeshItem()
         self.addItem(self.scene)
@@ -89,56 +98,46 @@ class ModelWidget(OpenGL.GLViewWidget):
         for group in self.settings.childGroups():
             if self.settings.value(group + "/is_on") != False:
                 self.settings.beginGroup(group)
-            mesh = ModelWidget.ModelObject()
-            
+                mesh = ModelWidget.ModelObject()
+                model_color = None
+                try:
+                    if self.settings.value("path") == "Default":
+                        verts = self._get_mesh_points(MESH_PATH)
+                    else:
+                        verts = self._get_mesh_points(self.settings.value("path"))
+                    if self.settings.value("Colors/is_on") != False:
+                        if self.settings.value("path") == "Colors/path":
+                            model_color = self._get_face_colors(self.settings.value("Colors/path"))
+                        else:
+                            model_color = self._get_face_colors(MESH_COLOR_PATH)
+                except Exception:
+                    pass
+                else:
+                    faces = NumPy.array([(i, i + 1, i + 2,) for i in range(0, len(verts), 3)])
 
-            model_color = None
-            try:
-                verts = self._get_mesh_points(self.settings.value("path"))
-                if self.settings.value("Colors/is_on") != False:
-                    model_color = self._get_face_colors(self.settings.value("Colors/path"))                
-            except Exception:
-                verts = self._get_mesh_points(MESH_PATH)
-                model_color = self._get_face_colors(MESH_COLOR_PATH)
+                    mesh.setMeshData(vertexes=verts,
+                                     faces=faces, 
+                                     faceColors=model_color,
+                                     edgeColor=(0, 0, 0, 1),
+                                     drawEdges=self.settings.value("draw_edges"), 
+                                     drawFaces=self.settings.value("draw_faces"),
+                                     smooth=self.settings.value("smooth"), 
+                                     shader=self.settings.value("shader"), 
+                                     computeNormals=self.settings.value("compute_normals"))
+                    mesh.meshDataChanged()
 
-            faces = NumPy.array([(i, i + 1, i + 2,) for i in range(0, len(verts), 3)])
+                    if self.settings.value("Rotation/is_on") != False:
+                        self.settings.beginGroup("Rotation/Packet")
+                        mesh.set_action_mode(mesh.MOTION_ROTATION_QUAT)
+                        mesh.set_sourse_id(self.settings.value("sourse_id"))
+                        mesh.set_message_id(self.settings.value("message_id"))
+                        mesh.set_data_fields_id(self.settings.value("quat_field_id"))
+                        self.settings.endGroup()
 
-            self.mesh.setMeshData(vertexes=verts,
-                                  faces=faces, 
-                                  faceColors=model_color,
-                                  edgeColor=(0, 0, 0, 1),
-                                  drawEdges=self.settings.value("draw_edges"), 
-                                  drawFaces=self.settings.value("draw_faces"),
-                                  smooth=self.settings.value("smooth"), 
-                                  shader=self.settings.value("shader"), 
-                                  computeNormals=self.settings.value("compute_normals"))
-            self.mesh.meshDataChanged()
-        self.settings.endGroup()
+                    self.mesh_list.append(mesh)
+                    self.addItem(mesh)
 
-        self.settings.beginGroup("CentralWidget/ModelWidget/Scene")
-        if self.settings.value("is_on") != False:
-            model_color = None
-            try:
-                verts = self._get_mesh_points(self.settings.value("path"))
-                if self.settings.value("Colors/is_on") != False:
-                    model_color = self._get_face_colors(self.settings.value("Colors/path"))                
-            except Exception:
-                verts = self._get_mesh_points(SCENE_MESH_PATH)
-                model_color = self._get_face_colors(SCENE_MESH_COLOR_PATH)
-
-            faces = NumPy.array([(i, i + 1, i + 2,) for i in range(0, len(verts), 3)])
-            verts *= 1.5
-
-            self.scene.setMeshData(vertexes=verts,
-                                   faces=faces, 
-                                   faceColors=model_color,
-                                   edgeColor=(0, 0, 0, 1),
-                                   drawEdges=self.settings.value("draw_edges"), 
-                                   drawFaces=self.settings.value("draw_faces"),
-                                   smooth=self.settings.value("smooth"), 
-                                   shader=self.settings.value("shader"), 
-                                   computeNormals=self.settings.value("compute_normals"))
-            self.scene.meshDataChanged()
+                self.settings.endGroup()
         self.settings.endGroup()
 
         self.settings.beginGroup("CentralWidget/ModelWidget/Camera")
@@ -176,19 +175,21 @@ class ModelWidget(OpenGL.GLViewWidget):
         return nd_points
 
     def new_data_reaction(self, data):
-        for msg in data[::-1]:
-            if (msg.get_source_id() == self.sourse_id) and (msg.get_message_id() == self.message_id):
-                quat = []
-                for i in range(4):
-                    quat.append(msg.get_data_dict().get(self.quat_field_id[i], None))
-                    if quat[-1] is None:
-                        quat = None
-                        break
-                if quat is not None:
-                    quat = QtGui.QQuaternion(*quat)
-                    self.clear_data()
-                    self._rotate_object(self.mesh, *quat.getAxisAndAngle())
-                    break
+        for mesh in self.mesh_list:
+            if mesh.get_action_mode() == mesh.MOTION_ROTATION_QUAT:
+                for msg in data[::-1]:
+                    if (msg.get_source_id() == mesh.get_source_id()) and (msg.get_message_id() == mesh.get_message_id()):
+                        quat = []
+                        for i in range(4):
+                            quat.append(msg.get_data_dict().get(mesh.get_data_fields_id()[i], None))
+                            if quat[-1] is None:
+                                quat = None
+                                break
+                        if quat is not None:
+                            quat = QtGui.QQuaternion(*quat)
+                            self.clear_data()
+                            self._rotate_object(mesh, *quat.getAxisAndAngle())
+                            break
 
     def _rotate_object(self, obj, axis, angle):
         obj.rotate(angle, axis[0], axis[1], axis[2])
