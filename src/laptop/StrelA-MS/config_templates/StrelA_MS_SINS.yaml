@@ -143,6 +143,22 @@ CentralWidget:
         name: SINS C0 GPS_UBX_NAV_SOL
         sourse_id: '11_0'
         message_id: GPS_UBX_NAV_SOL
+      SINS_MONHW:
+        name: SINS C0 SINS_MONHW
+        sourse_id: '11_0'
+        message_id: SINS_MONHW
+      SINS_MONHW2:
+        name: SINS C0 SINS_MONHW2
+        sourse_id: '11_0'
+        message_id: SINS_MONHW2
+      SINS_NAVSVINFO:
+        name: SINS C0 SINS_NAVSVINFO
+        sourse_id: '11_0'
+        message_id: SINS_NAVSVINFO
+      SINS_RXMSVSI:
+        name: SINS C0 SINS_RXMSVSI
+        sourse_id: '11_0'
+        message_id: SINS_RXMSVSI
       SINS_ISC:
         name: SINS C0 SINS_ISC
         sourse_id: '11_0'
