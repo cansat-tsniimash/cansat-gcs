@@ -32,12 +32,9 @@ int server_config_load(server_config_t * config)
 			.lna_boost = true,
 
 			// Параметры пакетирования
-			//.spreading_factor = SX126X_LORA_SF_8,
-			.spreading_factor = SX126X_LORA_SF_6,
-			//.bandwidth = SX126X_LORA_BW_250,
-			.bandwidth = SX126X_LORA_BW_500,
-			//.coding_rate = SX126X_LORA_CR_4_8,
-			.coding_rate = SX126X_LORA_CR_4_5,
+			.spreading_factor = SX126X_LORA_SF_7,
+			.bandwidth = SX126X_LORA_BW_250,
+			.coding_rate = SX126X_LORA_CR_4_8,
 			.ldr_optimizations = false,
 	};
 	config->radio_modem_cfg = modem_cfg;
@@ -62,14 +59,14 @@ int server_config_load(server_config_t * config)
 	config->radio_cad_cfg = cad_cfg;
 
 	const sx126x_drv_lora_rx_timeout_cfg_t rx_timeout_cfg = {
-			.stop_timer_on_preamble = true, //false,
-			.lora_symb_timeout = 0 //100, // примерно 250мс при SF8, BW250, CR4/8
+			.stop_timer_on_preamble = false,
+			.lora_symb_timeout = 200, // примерно 250мс при SF8, BW250, CR4/8
 	};
 	config->radio_rx_timeout_cfg = rx_timeout_cfg;
 
 
-	config->rx_timeout_ms = 600; //600;
-	config->rx_timeout_limit_left = 100; // 6; // примерно 6*250 = 1500 мс
+	config->rx_timeout_ms = 600;
+	config->rx_timeout_limit_left = 6; // примерно 6*250 = 1500 мс
 	config->rx_timeout_limit_zabey = config->rx_timeout_limit_left + 120; // Примерно 30*1000 мс
 
 	config->tx_timeout_ms = 0;
