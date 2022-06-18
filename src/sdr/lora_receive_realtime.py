@@ -3,7 +3,7 @@
 ##################################################
 # GNU Radio Python Flow Graph
 # Title: Lora Receive Realtime
-# Generated: Mon Oct  4 14:45:35 2021
+# Generated: Sat Jun 18 18:04:55 2022
 ##################################################
 
 if __name__ == '__main__':
@@ -40,7 +40,7 @@ class lora_receive_realtime(grc_wxgui.top_block_gui):
         ##################################################
         # Variables
         ##################################################
-        self.sf = sf = 8
+        self.sf = sf = 7
         self.samp_rate = samp_rate = 1e6
         self.bw = bw = 250000
         self.target_freq = target_freq = 438125e3
@@ -48,7 +48,7 @@ class lora_receive_realtime(grc_wxgui.top_block_gui):
         self.firdes_tap = firdes_tap = firdes.low_pass(1, samp_rate, bw, 10000, firdes.WIN_HAMMING, 6.67)
         self.downlink = downlink = False
         self.decimation = decimation = 1
-        self.capture_freq = capture_freq = 438125e3
+        self.capture_freq = capture_freq = 438e6
         self.bitrate = bitrate = sf * (1 / (2**sf / float(bw)))
 
         ##################################################
@@ -56,24 +56,28 @@ class lora_receive_realtime(grc_wxgui.top_block_gui):
         ##################################################
         self.wxgui_waterfallsink2_0 = waterfallsink2.waterfall_sink_c(
         	self.GetWin(),
-        	baseband_freq=0,
-        	dynamic_range=100,
-        	ref_level=0,
+        	baseband_freq=capture_freq,
+        	dynamic_range=50,
+        	ref_level=-10,
         	ref_scale=2.0,
         	sample_rate=samp_rate,
-        	fft_size=512,
-        	fft_rate=15,
+        	fft_size=1024,
+        	fft_rate=30,
         	average=False,
         	avg_alpha=None,
         	title='Waterfall Plot',
         )
         self.GridAdd(self.wxgui_waterfallsink2_0.win, 1, 0, 1, 2)
+        def wxgui_waterfallsink2_0_callback(x, y):
+        	self.set_target_freq(x)
+
+        self.wxgui_waterfallsink2_0.set_callback(wxgui_waterfallsink2_0_callback)
         self.wxgui_fftsink2_1 = fftsink2.fft_sink_c(
         	self.GetWin(),
         	baseband_freq=capture_freq,
         	y_per_div=10,
         	y_divs=10,
-        	ref_level=0,
+        	ref_level=-10,
         	ref_scale=2.0,
         	sample_rate=samp_rate,
         	fft_size=1024,
@@ -84,6 +88,10 @@ class lora_receive_realtime(grc_wxgui.top_block_gui):
         	peak_hold=False,
         )
         self.GridAdd(self.wxgui_fftsink2_1.win, 0, 1, 1, 1)
+        def wxgui_fftsink2_1_callback(x, y):
+        	self.set_target_freq(x)
+
+        self.wxgui_fftsink2_1.set_callback(wxgui_fftsink2_1_callback)
         self.wxgui_constellationsink2_0 = constsink_gl.const_sink_c(
         	self.GetWin(),
         	title='Constellation Plot',
@@ -100,20 +108,20 @@ class lora_receive_realtime(grc_wxgui.top_block_gui):
         	omega_limit=0.005,
         )
         self.GridAdd(self.wxgui_constellationsink2_0.win, 0, 0, 1, 1)
-        self.osmosdr_source_0 = osmosdr.source( args="numchan=" + str(1) + " " + '' )
+        self.osmosdr_source_0 = osmosdr.source( args="numchan=" + str(1) + " " + 'hackrf=118dc3' )
         self.osmosdr_source_0.set_sample_rate(samp_rate)
         self.osmosdr_source_0.set_center_freq(capture_freq, 0)
         self.osmosdr_source_0.set_freq_corr(0, 0)
         self.osmosdr_source_0.set_dc_offset_mode(0, 0)
         self.osmosdr_source_0.set_iq_balance_mode(0, 0)
         self.osmosdr_source_0.set_gain_mode(False, 0)
-        self.osmosdr_source_0.set_gain(50, 0)
-        self.osmosdr_source_0.set_if_gain(20, 0)
-        self.osmosdr_source_0.set_bb_gain(20, 0)
+        self.osmosdr_source_0.set_gain(14, 0)
+        self.osmosdr_source_0.set_if_gain(24, 0)
+        self.osmosdr_source_0.set_bb_gain(35, 0)
         self.osmosdr_source_0.set_antenna('', 0)
-        self.osmosdr_source_0.set_bandwidth(0, 0)
+        self.osmosdr_source_0.set_bandwidth(4e6, 0)
 
-        self.lora_message_socket_sink_0 = lora.message_socket_sink('192.168.43.252', 40868, 0)
+        self.lora_message_socket_sink_0 = lora.message_socket_sink('127.0.0.1', 40868, 0)
         self.lora_lora_receiver_0 = lora.lora_receiver(1e6, capture_freq, ([target_freq]), bw, sf, False, 4, True, False, downlink, decimation, False, False)
 
         ##################################################
@@ -189,6 +197,7 @@ class lora_receive_realtime(grc_wxgui.top_block_gui):
 
     def set_capture_freq(self, capture_freq):
         self.capture_freq = capture_freq
+        self.wxgui_waterfallsink2_0.set_baseband_freq(self.capture_freq)
         self.wxgui_fftsink2_1.set_baseband_freq(self.capture_freq)
         self.osmosdr_source_0.set_center_freq(self.capture_freq, 0)
 
