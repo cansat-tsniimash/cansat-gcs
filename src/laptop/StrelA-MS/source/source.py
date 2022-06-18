@@ -246,6 +246,8 @@ class MainWindow(QtWidgets.QMainWindow):
                                  topics=self.settings.value('ZMQ/topics'),
                                  log_path=LOG_FOLDER_PATH,
                                  notimestamps=bool(self.settings.value('ZMQ/notimestamps')))
+        elif sourse == 'ZMQ_MONOLIT':
+            data = MonolitRadioSentenceSource(bus_bpcs=self.settings.value('ZMQ_MONOLIT/bus_bpcs'))
         self.settings.endGroup()
         return data
 

@@ -12,6 +12,8 @@ import struct
 import zmq
 import json
 import logging
+import socket
+
 
 _log = logging.getLogger(__name__)
 
@@ -292,3 +294,93 @@ class ZMQDataSource():
     def stop(self):
         self.pkt_count = 0
         self.log.close()
+
+
+
+
+
+
+def BME280_parse(data: bytes):
+    unpacked = struct.unpack("<BhHIIH", data[:15])
+    flag = unpacked[0]
+    bme280_temp = unpacked[1] / 10
+    num = unpacked[2]
+    bme280_pres = unpacked[3]
+    time = unpacked[4]
+    return [Message(message_id='BME280',
+                    source_id=('monolit'),
+                    msg_time=time,#Vремя с контроллера (в нижней части графика) pavel_gps
+                    msg_data={'num':num, 'temp':bme280_temp, 'pres':bme280_pres})]#fилд айди (данные из пакетова, кот0-ые пойдут на график)
+
+def doZe_parse(data: bytes):
+        unpacked = struct.unpack("<BHIIIIH", data[:21])
+        flag = unpacked[0]
+        num = unpacked[1]
+        time = unpacked[2]
+        time_now = unpacked[3]
+        tick_min = unpacked[4]
+        tick_sum = unpacked[5]
+        return [Message(message_id='doZe',
+                    source_id=('monolit'),
+                    msg_time=time,#Vремя с контроллера (в нижней части графика) pavel_gps
+                    msg_data={'num':num, 'tick_min':tick_min, 'tick_now':time_now})]#fилд айди (данные из пакетова, кот0-ые пойдут на график)
+
+def GPS_parse(data: bytes):
+       unpacked = struct.unpack("<BBhHffIIIH", data[:28])
+    
+        flag = unpacked[0]
+        gps_fix = unpacked[1]
+        gps_altitude = unpacked[2] / 10
+        num = unpacked[3]
+        gps_latitude = unpacked[4]
+        gps_longtitude = unpacked[5]
+        time = unpacked[6]
+        gps_time_s = unpacked[7]
+        gps_time_us = unpacked[8]
+        return [Message(message_id='GPS',
+                    source_id=('monolit'),
+                    msg_time=time,#Vремя с контроллера (в нижней части графика) pavel_gps
+                    msg_data={'num':num, 'alt':gps_altitude})]#fилд айди (данные из пакетова, кот0-ые пойдут на график)
+
+
+
+
+
+
+
+
+class MonolitRadioSentenceSource():
+    def __init__(self, bus_bpcs="tcp://127.0.0.1:7778"):
+        self.bus_bpcs = bus_bpcs
+
+    def start(self):
+        self.zmq_ctx = zmq.Context()
+
+        self.sub_socket = self.zmq_ctx.socket(zmq.SUB)
+        self.sub_socket.connect(self.bus_bpcs)
+        self.sub_socket.setsockopt_string(zmq.SUBSCRIBE, "")
+
+        self.poller = zmq.Poller()
+        self.poller.register(self.sub_socket, zmq.POLLIN)
+
+    def read_data(self):
+        events = dict(self.poller.poll(10))
+        if self.sub_socket in events:
+            zmq_msg = self.sub_socket.recv_multipart()#получаем сообщение
+            raw_bytes = zmq_msg[0]
+            data = []
+
+            if zmq_msg[0] == 117:
+                return BME280_parse(raw_bytes)
+            if zmq_msg[0] == 66:
+                return doZe_parse(raw_bytes)
+            if zmq_msg[0] == 71:
+                return GPS_parse(raw_bytes)
+
+
+            return data
+        else:
+            raise RuntimeError("No Message")
+
+    def stop(self):
+        pass
