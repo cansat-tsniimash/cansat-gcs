@@ -201,23 +201,6 @@ class StatusWidget(QtWidgets.QWidget):
             return self.cmd_list[row].get_enabled()
 
         def headerData(self, section, orientation, role=QtCore.Qt.DisplayRole):
-            #if orientation != QtCore.Qt.Horizontal:
-            #    return QtCore.QVariant()
-
-            #if role == QtCore.Qt.DisplayRole:
-            #    if section == 0:
-            #        return QtCore.QVariant("Cookie")
-
-            #    elif section == 1:
-            #        return QtCore.QVariant("Name")
-
-            #    elif section == 2:
-            #        return QtCore.QVariant("Status")
-
-            #    elif section == 3:
-            #        return QtCore.QVariant("Start time\nStop time")
-
-            #return QtCore.QVariant()
             if ((orientation == QtCore.Qt.Horizontal) and (role == QtCore.Qt.DisplayRole)):
                 return self.rootItem.data(section)
 
@@ -225,40 +208,8 @@ class StatusWidget(QtWidgets.QWidget):
 
 
         def data(self, index, role):
-            #if role == QtCore.Qt.DisplayRole:
-            #    cmd = self.cmd_list[index.row()]
-            #    if index.column() == 0:
-            #        return QtCore.QVariant(cmd.get_cookie())
-
-            #    elif index.column() == 1:
-            #        return QtCore.QVariant(cmd.get_name())
-
-            #    elif index.column() == 2:
-            #        return QtCore.QVariant(cmd.get_status())
-
-            #    elif index.column() == 3:
-            #        return QtCore.QVariant(self.get_cmd_time_str(cmd.get_start_time()) + '\n' +
-            #                               self.get_cmd_time_str(cmd.get_stop_time()))
-
-            #elif role == QtCore.Qt.BackgroundRole:
-            #    cmd = self.cmd_list[index.row()]
-            #    status_type = cmd.get_status_type()
-            #    if status_type == StatusWidget.StatusModel.Command.STATUS_PROCESSING:
-            #        return self.background_processing_brush
-            #    elif status_type == StatusWidget.StatusModel.Command.STATUS_SUCCSESS:
-            #        return self.background_success_brush
-            #    elif status_type == StatusWidget.StatusModel.Command.STATUS_FAILURE:
-            #        return self.background_failure_brush
-            #    else:
-            #        return self.background_brush
-
-            #return QtCore.QVariant()
-
             if (not index.isValid()):
                 return QtCore.QModelIndex()
-
-            print(index.column())
-            print(index.row())
 
             if role == QtCore.Qt.DisplayRole:
                 return index.internalPointer().data(index.column())
@@ -269,7 +220,6 @@ class StatusWidget(QtWidgets.QWidget):
                     status_type = index.internalPointer().parent.get_status_type()
                 else:
                     status_type = None
-                print(status_type)
                 if status_type == StatusWidget.StatusModel.Command.STATUS_PROCESSING:
                     return self.background_processing_brush
                 elif status_type == StatusWidget.StatusModel.Command.STATUS_SUCCSESS:
@@ -327,7 +277,12 @@ class StatusWidget(QtWidgets.QWidget):
     class SortFilterProxyStatusModel(QtCore.QSortFilterProxyModel):
 
         def filterAcceptsRow(self, sourceRow, sourceParent):
-            return True#return self.sourceModel().rootItem.child(sourceRow).is_command_enabled(sourceRow)
+            if isinstance(sourceParent.internalPointer(), StatusWidget.StatusModel.Command):
+                return sourceParent.internalPointer().get_enabled()
+
+            if sourceParent.internalPointer() is None:
+                return self.sourceModel().rootItem.child(sourceRow).get_enabled()
+            return True
 
 
     def __init__(self):
