@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-
+import sys
 import os
 import logging
 import argparse
@@ -15,8 +14,11 @@ from its_logfile import LogfileWriter
 LOGFILE_FLUSH_PERIOD = 1
 
 
-ITS_GBUS_BPCS_ENDPOINT = "tcp://0.0.0.0:7778"
-ITS_GBUS_BSCP_ENDPOINT = "tcp://0.0.0.0:7777"
+ITS_GBUS_BPCS_ENDPOINT = os.environ.get("ITS_GBUS_BPCS_ENDPOINT", "tcp://0.0.0.0:7778")
+ITS_GBUS_BSCP_ENDPOINT = os.environ.get("ITS_GBUS_BSCP_ENDPOINT", "tcp://0.0.0.0:7777")
+
+ITS_GBUS_BPCS_ENDPOINT = ITS_GBUS_BPCS_ENDPOINT.replace("localhost", "0.0.0.0")
+ITS_GBUS_BSCP_ENDPOINT = ITS_GBUS_BSCP_ENDPOINT.replace("localhost", "0.0.0.0")
 
 
 _log = logging.getLogger(__name__)
@@ -30,12 +32,21 @@ def generate_logfile_name():
     return "its-broker-log-" + isostring + ".zmq-log"
 
 
-def main():
+def main(argv):
+    parser = argparse.ArgumentParser("ITS zmq bus broker!", add_help=True)
+    parser.add_argument("--no-log", action='store_true', dest='no_log', help='do not create a logfile')
+    args = parser.parse_args(argv)
+
     # TODO: Сделать красивую остановку по ctrl+c
     ctx = zmq.Context()
-    logfile_name = generate_logfile_name()
-    _log.info("using logfile \"%s\"", logfile_name)
-    logfile_writer = LogfileWriter(logfile_name)
+
+    if not args.no_log:
+        logfile_name = generate_logfile_name()
+        _log.info("using logfile \"%s\"", logfile_name)
+        logfile_writer = LogfileWriter(logfile_name)
+    else:
+        _log.warning("LOG FILE IS DISABLED BY CONFIG")
+        logfile_writer = None
 
     try:
         bus_sub = ITS_GBUS_BSCP_ENDPOINT
@@ -58,11 +69,14 @@ def main():
             events = dict(poller.poll(1000))
             if sub_socket in events:
                 msgs = sub_socket.recv_multipart()
+                
                 _log.info("got messages: %r", msgs)
                 pub_socket.send_multipart(msgs)
-                logfile_writer.write(msgs)
+                if logfile_writer:
+                    logfile_writer.write(msgs)
+
                 now = time.time()
-                if now - last_log_flush_timepoint >= LOGFILE_FLUSH_PERIOD:
+                if logfile_writer and now - last_log_flush_timepoint >= LOGFILE_FLUSH_PERIOD:
                     logfile_writer.flush()
 
     except KeyboardInterrupt:
@@ -71,7 +85,8 @@ def main():
 
     finally:
         del ctx
-        logfile_writer.close()
+        if logfile_writer:
+            logfile_writer.close()
 
     return 0
 
@@ -83,4 +98,5 @@ if __name__ == "__main__":
         level=logging.INFO
     )
 
-    exit(main())
+    argv = sys.argv[1:]
+    exit(main(argv))

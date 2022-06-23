@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 from argparse import ArgumentParser
 from its_logfile import LogfileWriter, LogfileReader
 from contextlib import ExitStack
