@@ -457,7 +457,7 @@ CentralWidget:
             - quaternion[3]
       Scene:
         Colors:
-          is_on: false
+          is_on: true
           path: ./source/models/axis.mfcl
         compute_normals: true
         draw_edges: false
@@ -478,7 +478,7 @@ CentralWidget:
             - quaternion[3]
       Sun:
         Colors:
-          is_on: false
+          is_on: true
           color: '#0096FF'
         compute_normals: true
         draw_edges: false
