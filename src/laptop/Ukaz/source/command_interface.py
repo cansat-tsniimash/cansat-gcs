@@ -177,6 +177,7 @@ class ZMQITSUSLPInterface(MAVITSInterface):
         self.timeout = 0.5
 
     def msg_reaction(self, msg):
+        print(msg)
         if msg[0] == 'its.telecommand_event':
             data = json.loads(msg[1].decode("utf-8"))
             cookie = data.get('cookie', None)
@@ -241,11 +242,17 @@ class ZMQITSInterface(MAVITSInterface):
 
     def msg_reaction(self, msg):
         if msg[0] == b'radio.uplink_state':
+            print(msg)
             data = json.loads(msg[1].decode("utf-8"))
-            cookie = data.get('cookie_in_wait', 0)
+            cookie = data.get('cookie_in_wait', None)
             if cookie is None:
                 if len(self.buf) > 0:
                     self.send_msg.emit(self.buf.pop())
+            else:
+                self.command_ststus_changed.emit(CommandStatusMessage(cookie=cookie, 
+                                                                      status='accepted by radio-server',
+                                                                      status_type=CommandStatusMessage.STATUS_PROCESSING,
+                                                                      stage_id=1)) 
             cookie = data.get('cookie_in_progress', None)
             if cookie is not  None:
                 self.command_ststus_changed.emit(CommandStatusMessage(cookie=cookie, 
