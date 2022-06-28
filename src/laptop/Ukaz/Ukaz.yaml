@@ -51,8 +51,6 @@ CentralWidget:
         type: 'time_us'
       area_id:
         type: 'int'
-      active_time:
-        type: 'int'
       pulse_count:
         type: 'int'
       pulse_duration:
