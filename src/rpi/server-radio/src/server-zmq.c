@@ -797,7 +797,7 @@ int zserver_send_stats(
 int zserver_send_instant_rssi(zserver_t * zserver, int8_t rssi)
 {
 	int rc;
-	log_debug("sending rssi %d", (int)rssi);
+	log_trace("sending rssi %d", (int)rssi);
 
 	timestamp_t now;
 	now = _get_world_time();
