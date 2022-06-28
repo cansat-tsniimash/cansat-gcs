@@ -1,0 +1,10 @@
+fastkml==0.12
+future==0.18.2
+lxml==4.9.0
+pygeoif==0.7
+#pymavlink==2.4.25
+python-dateutil==2.8.2
+pyzmq==23.2.0
+Shapely==1.8.2
+six==1.16.0
+zmq==0.0.0
