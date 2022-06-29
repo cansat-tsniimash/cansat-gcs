@@ -94,6 +94,9 @@ class StatusWidget(QtWidgets.QWidget):
                     if self.stop_time.data(1) == self.get_cmd_time_str(0):
                         self.stop_time.set_data(self.get_cmd_time_str(time.time()), 1)
 
+            def set_name(self, name):
+                self.set_data(name, 0)
+
             def get_name(self):
                 return self.name
 
@@ -249,6 +252,8 @@ class StatusWidget(QtWidgets.QWidget):
                         cmd.set_status_type(status_type)
                         cmd.set_status(status)
                         cmd.set_stage_id(stage_id)
+                        if name != 'Undefined':
+                            cmd.set_name(name)
                         if (status_type == StatusWidget.StatusModel.Command.STATUS_FAILURE) or (status_type == StatusWidget.StatusModel.Command.STATUS_SUCCSESS):
                             cmd.set_enabled(False)
                         self.endReset()
@@ -339,19 +344,34 @@ class StatusWidget(QtWidgets.QWidget):
         self.context_menu.popup(self.processing_cmds_tree.mapToGlobal(pos))
 
     def add_command(self, name, cookie):
-        self.cmds.update_cmd(cookie=cookie,
-                             name=name)
+        self.update_cmd(cookie=cookie,
+                        name=name)
 
     def delete_command(self):
-        cmd = self.cmds.get_cmd_list()[self.processing_cmds.mapToSource(self.processing_cmds_tree.selectionModel().currentIndex()).row()]
-        self.cmds.update_cmd(cmd.get_cookie(), 'deleted by operator', StatusWidget.StatusModel.Command.STATUS_FAILURE)
+        if self.processing_cmds.mapToSource(self.processing_cmds_tree.selectionModel().currentIndex()).column() == 1:
+            cmd = self.cmds.get_cmd_list()[self.processing_cmds.mapToSource(self.processing_cmds_tree.selectionModel().currentIndex()).row()]
+            self.update_cmd(cmd.get_cookie(), 'deleted by operator', StatusWidget.StatusModel.Command.STATUS_FAILURE)
 
+    def update_cmd(self, *args, **kwargs):
+        cmds_tree_el = []
+        for i in range(self.cmds_tree.model().rootItem.childCount()):
+            index = self.cmds_tree.model().index(i, 0, QtCore.QModelIndex())
+            cmds_tree_el.append([index, self.cmds_tree.isExpanded(index)])
+
+        self.cmds.update_cmd(*args, **kwargs)
+
+        for obj in cmds_tree_el:
+            if obj[1]:
+                self.cmds_tree.expand(obj[0])
+        self.processing_cmds_tree.expandAll()
     def new_msg_reaction(self, msg):
-        self.cmds.update_cmd(cookie=msg.get_cookie(),
-                             status=msg.get_status(),
-                             status_type=msg.get_status_type(),
-                             stage_id=msg.get_stage_id(),
-                             name=msg.get_name())
+        self.update_cmd(cookie=msg.get_cookie(),
+                        status=msg.get_status(),
+                        status_type=msg.get_status_type(),
+                        stage_id=msg.get_stage_id(),
+                        name=msg.get_name())
+
+
 
     def clear_data(self):
         self.cmds.clear()

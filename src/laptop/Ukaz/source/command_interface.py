@@ -177,7 +177,6 @@ class ZMQITSUSLPInterface(MAVITSInterface):
         self.timeout = 0.5
 
     def msg_reaction(self, msg):
-        print(msg)
         if msg[0] == 'its.telecommand_event':
             data = json.loads(msg[1].decode("utf-8"))
             cookie = data.get('cookie', None)
@@ -239,10 +238,11 @@ class ZMQITSInterface(MAVITSInterface):
         self.buf = []
         self.last_send_time = 0
         self.timeout = 0.5
+        self.mav_rx = MAVITSInterface()
+        self.mav_tx = MAVITSInterface()
 
     def msg_reaction(self, msg):
         if msg[0] == b'radio.uplink_state':
-            print(msg)
             data = json.loads(msg[1].decode("utf-8"))
             cookie = data.get('cookie_in_wait', None)
             if cookie is None:
@@ -273,10 +273,10 @@ class ZMQITSInterface(MAVITSInterface):
                                                                       stage_id=1))
         elif msg[0] == b'radio.downlink_frame':
             msg_buf = msg[2]
-            mav_msgs = self.mav.parse_buffer(msg_buf)
+            mav_msgs = self.mav_tx.mav.parse_buffer(msg_buf)
             if mav_msgs is not  None:
                 for mav_msg in mav_msgs:
-                    super(ZMQITSInterface, self).msg_reaction(mav_msg)
+                    self.mav_tx.msg_reaction(mav_msg)
 
         elif msg[0] == b'radio.rssi_instant':
             self.data_changed.emit(DataMessage(message_id='radio.rssi_instant',
@@ -294,6 +294,19 @@ class ZMQITSInterface(MAVITSInterface):
                                                msg_time=self._extract_mdt_time(msg),
                                                msg_data=json.loads(msg[1].decode("utf-8"))))
 
+        elif msg[0] == b'radio.uplink_frame':
+            data = json.loads(msg[1].decode("utf-8"))
+            cookie = data.get('cookie', None)
+            if cookie is not  None:
+                msg_buf = msg[2]
+                mav_msgs = self.mav_rx.mav.parse_buffer(msg_buf)
+                if mav_msgs[0] is not  None:
+                    self.command_ststus_changed.emit(CommandStatusMessage(cookie=cookie, 
+                                                                          status='Undefined',
+                                                                          status_type=CommandStatusMessage.STATUS_UNKNOWN,
+                                                                          stage_id=1,
+                                                                          name=mav_msgs[0].to_dict().pop('mavpackettype', None)))
+
     def send_command(self, msg, cookie=None):
         if msg is not None:
             msg.get_header().srcSystem = 0
@@ -303,8 +316,8 @@ class ZMQITSInterface(MAVITSInterface):
             else:
                 seq = self.cookie
                 self.cookie += 1
-            self.mav.seq = int(seq)
+            self.mav_tx.mav.seq = int(seq)
             multipart = ["radio.uplink_frame".encode("utf-8"),
                          ('{ "cookie": %d }' % int(seq)).encode("utf-8"),
-                         msg.pack(self.mav)]
+                         msg.pack(self.mav_tx.mav)]
             self.buf.append(multipart)

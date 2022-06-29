@@ -105,6 +105,7 @@ MainWindow:
         - 'radio.rssi_instant'
         - 'radio.rssi_packet'
         - 'radio.stats'
+        - radio.uplink_frame
     type: ZMQ
   size:
   - 1000
