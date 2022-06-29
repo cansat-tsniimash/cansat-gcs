@@ -105,7 +105,7 @@ class MAVDataSource():
                 data['ecefZ'] /= 100
                 msg_list.append(Message(message_id='TARGET_DISTANCE',
                                         source_id='0_0',
-                                        msg_time=msg_time,
+                                        msg_time=time.time(),
                                         msg_data={'distance':NumPy.linalg.norm((self.target_coords - self.ground_coords))}))
             elif msg.get_type() == 'PLD_DOSIM_DATA':
                 gain =  1000 * 60 * 60
@@ -120,7 +120,7 @@ class MAVDataSource():
                 self.ground_coords = NumPy.array(msg.ecef).reshape((3, 1))
                 msg_list.append(Message(message_id='TARGET_DISTANCE',
                                         source_id='0_0',
-                                        msg_time=msg_time,
+                                        msg_time=time.time(),
                                         msg_data={'distance':(NumPy.linalg.norm((self.target_coords - self.ground_coords)))}))
 
             header = msg.get_header()
