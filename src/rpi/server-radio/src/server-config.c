@@ -69,7 +69,7 @@ int server_config_load(server_config_t * config)
 	config->rx_timeout_limit_left = 6;
 	config->rx_timeout_limit_zabey = config->rx_timeout_limit_left + 120; // Примерно 30*1000 мс
 
-	config->tx_timeout_ms = 0;
+	config->tx_timeout_ms = 1000;
 
 	config->rx_watchdog_ms = 5000;
 	config->tx_watchdog_ms = 5000;
