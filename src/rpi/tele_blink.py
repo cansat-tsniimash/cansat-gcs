@@ -25,8 +25,8 @@ def main():
     poller.register(sub_socket, zmq.POLLIN)
 
     chip = gpiod.Chip(LED_CHIP)
-    tm_led_lines = chip.get_lines([TM_LED_LINE, FIX_LED_LINE])
-    tm_led_lines.request(consumer="its_tele_blink", type=gpiod.LINE_REQ_DIR_OUT, default_vals=[0, 0])
+    led_lines = chip.get_lines([TM_LED_LINE, FIX_LED_LINE])
+    led_lines.request(consumer="its_tele_blink", type=gpiod.LINE_REQ_DIR_OUT, default_vals=[0, 0])
 
     mav = MAVLink(file=None)
     mav.robust_parsing = True
@@ -39,14 +39,17 @@ def main():
         if sub_socket in events:
             msgs = sub_socket.recv_multipart()
             tm_led_value = 1
-            print("got msgs %s", msgs)
+            #print("got bus messages %s" % msgs)
 
             mavlink_payload = msgs[2]
             packets = mav.parse_buffer(mavlink_payload)
             for p in packets or []:
+                #print("mav_packet: %s" % p)
                 if isinstance(p, MAVLink_gps_ubx_nav_sol_message):
+                    print(p)
                     fix = p.gpsFix
-                    if fix != 0:
+                    if fix:
+                        print("HAVE FIX")
                         fix_led_value = 1
 
         led_lines.set_values([tm_led_value, fix_led_value])
