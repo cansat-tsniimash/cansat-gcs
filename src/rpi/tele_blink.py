@@ -38,7 +38,7 @@ def main():
             print("got msgs %s", msgs)
             led_lines.set_values([1])
         else:
-            ed_lines.set_values([0])
+            led_lines.set_values([0])
 
     del ctx
     return 0
