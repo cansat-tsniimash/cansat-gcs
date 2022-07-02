@@ -436,6 +436,7 @@ CentralWidget:
       - -10
     Meshes:
       Satellite_mesh:
+        is_on: true
         Colors:
           is_on: true
           path: ./source/models/CanCubeSat-2-for-GKS_color.mfcl
@@ -456,47 +457,42 @@ CentralWidget:
             - quaternion[2]
             - quaternion[3]
       Scene:
+        is_on: true
         Colors:
           is_on: true
           path: ./source/models/axis.mfcl
         compute_normals: true
         draw_edges: false
         draw_faces: true
-        is_on: true
         path: ./source/models/axis.stl
         shader: balloon
         smooth: false
-        Rotation:
-          is_on: false
-          Packet:
-            sourse_id: '11_0'
-            message_id: 'SINS_ISC'
-            field_id: 
-            - quaternion[0]
-            - quaternion[1]
-            - quaternion[2]
-            - quaternion[3]
       Sun:
+        is_on: true
+        multiplier: 3
+        shift:
+          - 160
+          - 0
+          - 4
         Colors:
           is_on: true
-          color: '#0096FF'
+          color: '#FFFF00'
         compute_normals: true
         draw_edges: false
         draw_faces: true
-        path: ./source/models/CanCubeSat-2-for-GKS.stl
+        path: ./source/models/the-sun.stl
         shader: balloon
         smooth: false
-        is_on: false
-        Rotation:
+        Translation:
           is_on: true
+          norm: 250
           Packet:
             sourse_id: '11_0'
-            message_id: 'SINS_SUN_RECOUNT'
+            message_id: 'SINS_isc'
             field_id: 
-            - quaternion[0]
-            - quaternion[1]
-            - quaternion[2]
-            - quaternion[3]
+            - 'light_dir_measured[0]'
+            - 'light_dir_measured[1]'
+            - 'light_dir_measured[2]'
     background_color: '#505050'
     is_on: true
     position:
