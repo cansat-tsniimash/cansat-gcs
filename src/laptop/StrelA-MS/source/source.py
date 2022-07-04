@@ -46,6 +46,7 @@ class CentralWidget(QtWidgets.QWidget):
         for key in self.widgets_dict.keys():
             self.settings.beginGroup(key)
             position = self.settings.value("position")
+            print(key)
             self.grid_layout.addWidget(self.widgets_dict[key], *[int(num) for num in position])
             self.settings.endGroup()
         self.settings.endGroup()

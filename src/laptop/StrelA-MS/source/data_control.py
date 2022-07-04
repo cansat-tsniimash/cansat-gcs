@@ -307,6 +307,7 @@ def BME280_parse(data: bytes):
     num = unpacked[2]
     bme280_pres = unpacked[3]
     time = unpacked[4]
+    print("BME280")
     return [Message(message_id='BME280',
                     source_id=('monolit'),
                     msg_time=time,#Vремя с контроллера (в нижней части графика) pavel_gps
@@ -320,6 +321,7 @@ def doZe_parse(data: bytes):
         time_now = unpacked[3]
         tick_min = unpacked[4]
         tick_sum = unpacked[5]
+        print("DOSE")
         return [Message(message_id='doZe',
                     source_id=('monolit'),
                     msg_time=time,#Vремя с контроллера (в нижней части графика) pavel_gps
@@ -327,20 +329,57 @@ def doZe_parse(data: bytes):
 
 def GPS_parse(data: bytes):
        unpacked = struct.unpack("<BBhHffIIIH", data[:28])
-    
-        flag = unpacked[0]
-        gps_fix = unpacked[1]
-        gps_altitude = unpacked[2] / 10
-        num = unpacked[3]
-        gps_latitude = unpacked[4]
-        gps_longtitude = unpacked[5]
-        time = unpacked[6]
-        gps_time_s = unpacked[7]
-        gps_time_us = unpacked[8]
-        return [Message(message_id='GPS',
+       flag = unpacked[0]
+       gps_fix = unpacked[1]
+       gps_altitude = unpacked[2] / 10
+       num = unpacked[3]
+       gps_latitude = unpacked[4]
+       gps_longtitude = unpacked[5]
+       time = unpacked[6]
+       gps_time_s = unpacked[7]
+       gps_time_us = unpacked[8]
+       print("GPS")
+       return [Message(message_id='GPS',
                     source_id=('monolit'),
                     msg_time=time,#Vремя с контроллера (в нижней части графика) pavel_gps
-                    msg_data={'num':num, 'alt':gps_altitude})]#fилд айди (данные из пакетова, кот0-ые пойдут на график)
+                    msg_data={'num':num, 'alt':gps_altitude, 'lat' :gps_latitude, 'lon' :gps_longtitude, 'fix' :gps_fix})]#fилд айди (данные из пакетова, кот0-ые пойдут на график)
+
+def DS_parse(data: bytes):
+        unpacked = struct.unpack("<BBHHIH", data[:12])
+        flag = unpacked[0]
+        state_apparate = unpacked[1]
+        num = unpacked[2]     
+        DS18temp = unpacked[3]
+        print("DS18")
+        return [Message(message_id='DS18',
+                    source_id=('monolit'),
+                    msg_time=time,#Vремя с контроллера (в нижней части графика) pavel_gps
+                    msg_data={'num':num, 'DS18temp' :DS18temp})]#fилд айди (данные из пакетова, кот0-ые пойдут на график)
+
+def Orient_parse(data: bytes):
+        unpacked = struct.unpack("<BhhhhhhhhhHIH", data[:27])
+        flag = unpacked[0]
+        acc_x = unpacked[1] / 1000
+        acc_y = unpacked[2] / 1000
+        acc_z = unpacked[3] / 1000
+        gyro_x = unpacked[4] / 100
+        gyro_y = unpacked[5] / 100
+        gyro_z = unpacked[6] / 100
+        mag_x = unpacked[7] / 1000
+        mag_y = unpacked[8] / 1000
+        mag_z = unpacked[9] / 1000
+        num = unpacked[10]
+        time = unpacked[11]
+        print("Orient")
+        return [Message(message_id='Orient',
+                    source_id=('monolit'),
+                    msg_time=time,#Vремя с контроллера (в нижней части графика) pavel_gps
+                    msg_data={'num':num, 'acc_x' :acc_x, 'acc_y' :acc_y, 'acc_z' :acc_z, 'gyro_x' :gyro_x, 'gyro_y' :gyro_y, 'gyro_z' :gyro_z, 'mag_x' :mag_x, 'mag_y' :mag_y, 'mag_z' :mag_z})]#fилд айди (данные из пакетова, кот0-ые пойдут на график)
+
+
+
+
+
 
 
 
@@ -350,6 +389,54 @@ def GPS_parse(data: bytes):
 
 
 class MonolitRadioSentenceSource():
+    def __init__(self, bus_bpcs="tcp://127.0.0.1:7778"):
+        self.bus_bpcs = bus_bpcs
+        print(bus_bpcs)
+
+    def start(self):
+        self.zmq_ctx = zmq.Context()
+
+        self.sub_socket = self.zmq_ctx.socket(zmq.SUB)
+        self.sub_socket.connect(self.bus_bpcs)
+        self.sub_socket.setsockopt_string(zmq.SUBSCRIBE, "")
+
+        self.poller = zmq.Poller()
+        self.poller.register(self.sub_socket, zmq.POLLIN)
+        print("start")
+
+    def read_data(self):
+        events = dict(self.poller.poll(10))
+        print(events)
+        if self.sub_socket in events:
+            zmq_msg = self.sub_socket.recv_multipart()#получаем сообщение
+            raw_bytes = zmq_msg[0]
+            print(raw_bytes)
+            data = []
+
+            if raw_bytes[0] == 117:
+                return BME280_parse(raw_bytes)
+            elif raw_bytes[0] == 66:
+                return doZe_parse(raw_bytes)
+            elif raw_bytes[0] == 71:
+                return GPS_parse(raw_bytes)
+            elif raw_bytes[0] == 99:
+                return DS_parse(raw_bytes)
+            elif raw_bytes[0] == 228:
+                return Orient_parse(raw_bytes)
+
+            return data
+        else:
+            raise RuntimeError("No Message")
+
+    def stop(self):
+        pass
+        print("stop")
+
+
+
+
+
+class AtlasRadioSentenceSource():
     def __init__(self, bus_bpcs="tcp://127.0.0.1:7778"):
         self.bus_bpcs = bus_bpcs
 
@@ -368,19 +455,92 @@ class MonolitRadioSentenceSource():
         if self.sub_socket in events:
             zmq_msg = self.sub_socket.recv_multipart()#получаем сообщение
             raw_bytes = zmq_msg[0]
-            data = []
 
-            if zmq_msg[0] == 117:
-                return BME280_parse(raw_bytes)
-            if zmq_msg[0] == 66:
-                return doZe_parse(raw_bytes)
-            if zmq_msg[0] == 71:
-                return GPS_parse(raw_bytes)
+            if raw_bytes[0] == 0xff:
+                return MA_type_1_parse(raw_bytes)
+            elif raw_bytes[0] == 0xfe:
+                return MA_type_2_parse(raw_bytes)
+            elif raw_bytes[0] == 0xfa:
+                return DA_type_1_parse(raw_bytes)
+            elif raw_bytes[0] == 0xfb:
+                return DA_type_2_parse(raw_bytes)
 
 
-            return data
+            return []
         else:
             raise RuntimeError("No Message")
 
     def stop(self):
         pass
+        print("stop")
+
+
+
+
+
+
+    def MA_type_1_parse(data: bytes)
+    unpacked = struct.unpack("<BHI2fh2fhHBH", data[:32])
+    flag = unpacked[0]
+    num = unpacked[1]
+    time = unpacked[2]
+    bme280_pres = unpacked[3]
+    bme280_temp = unpacked[4] / 100
+    ds18b20_temp = unpacked[5]
+    latitude = unpacked[6]
+    longitude = unpacked[7]
+    height = unpacked[8]
+    print("BME280")
+    return [Message(message_id='BME280',
+                    source_id=('atlas_ma_type_1'),
+                    msg_time=time,#Vремя с контроллера (в нижней части графика) pavel_gps
+                    msg_data={'num':num, 'temp':bme280_temp, 'pres':bme280_pres, 'ds_temp':ds18b20_temp, 'lat':latitude, 'long':longitude, 'hei':height})]#fилд айди (данные из пакетова, кот0-ые пойдут на график)
+
+
+    def MA_type_2_parse(data: bytes)
+    unpacked = struct.unpack("<BHI9hfBh", data[:32])
+    flag = unpacked[0]
+    time = unpacked[2]
+    num = unpacked[1]
+    acc_mg_1 = unpacked[3]
+    acc_mg_2 = unpacked[4]
+    acc_mg_3 = unpacked[5]
+    gyro_mdps_1 = unpacked[6]
+    gyro_mdps_2 = unpacked[7]
+    gyro_mdps_3 = unpacked[8]
+    lism_1 = unpacked[9]
+    lism_2 = unpacked[10]
+    lism_3 = unpacked[11]
+    phort_res = unpacked[12]
+    print("BME280")
+    return [Message(message_id='ACC',
+                    source_id=('atlas_ma_type_2'),
+                    msg_time=time,#Vремя с контроллера (в нижней части графика) pavel_gps
+                    msg_data={'num':num, 'acc_1':acc_mg_1, 'acc_2':acc_mg_2, 'acc_3': acc_mg_3, 'gyro_1':gyro_mdps_1, 'gyro_2':gyro_mdps_2, 'gyro_3': gyro_mdps_3, 'lism_1':lism_1, 'lism_2':lism_2, 'lism_3':lism_3})]#fилд айди (данные из пакетова, кот0-ые пойдут на график)
+
+    def DA_type_1_parse(data: bytes)
+    unpacked = struct.unpack("<BBHIIhH6hH", data[:15])
+    flag = unpacked[0]
+    bme280_temp = unpacked[5] / 100
+    num = unpacked[2]
+    bme280_pres = unpacked[4]
+    time = unpacked[3]
+    print("BME280")
+    return [Message(message_id='1',
+                    source_id=('atlas_da'+ str(unpacked[1])),
+                    msg_time=time,#Vремя с контроллера (в нижней части графика) pavel_gps
+                    msg_data={'num':num, 'temp':bme280_temp, 'pres':bme280_pres})]#fилд айди (данные из пакетова, кот0-ые пойдут на график)
+
+    def DA_type_2_parse(data: bytes)
+    unpacked = struct.unpack("<BBHI3fBBH", data[:15])
+    flag = unpacked[0]
+    num = unpacked[2]
+    time = unpacked[3]
+    latitude = unpacked[4]
+    longitude = unpacked[5]
+    height = unpacked[6]
+    print("GPS")
+    return [Message(message_id='2',
+                    source_id=('atlas_da'+ str(unpacked[1])),
+                    msg_time=time,#Vремя с контроллера (в нижней части графика) pavel_gps
+                    msg_data={'num':num, 'temp':bme280_temp, 'pres':bme280_pres})]#fилд айди (данные из пакетова, кот0-ые пойдут на график)1

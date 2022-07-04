@@ -1,0 +1,420 @@
+CentralWidget:
+  DataWidget:
+    Data_table:
+      MA1:
+        name: MA type 1
+        sourse_id: 'atlas_ma'
+        message_id: '1'
+      MA2:
+        name: GPS
+        sourse_id: 'atlas_ma'
+        message_id: '2'
+      DA21:
+        name: DA 2 type 1
+        sourse_id: 'atlas_da2'
+        message_id: '1'
+      DA22:
+        name: DA 2 type 2 
+        sourse_id: 'atlas_da2'
+        message_id: '2'
+      DA11:
+        name: DA 1 type 1
+        sourse_id: 'atlas_da1'
+        message_id: '1'
+      DA12:
+        name: DA 1 type 2 
+        sourse_id: 'atlas_da1'
+        message_id: '2'
+      DA31:
+        name: DA 3 type 1
+        sourse_id: 'atlas_da3'
+        message_id: '1'
+      DA32:
+        name: DA 3 type 2 
+        sourse_id: 'atlas_da3'
+        message_id: '2'
+      def_time_limit: 20
+    Packet_table:
+      MA1:
+        name: MA type 1
+        sourse_id: 'atlas_ma'
+        message_id: '1'
+      MA2:
+        name: GPS
+        sourse_id: 'atlas_ma'
+        message_id: '2'
+      DA21:
+        name: DA 2 type 1
+        sourse_id: 'atlas_da2'
+        message_id: '1'
+      DA22:
+        name: DA 2 type 2 
+        sourse_id: 'atlas_da2'
+        message_id: '2'
+      DA11:
+        name: DA 1 type 1
+        sourse_id: 'atlas_da1'
+        message_id: '1'
+      DA12:
+        name: DA 1 type 2 
+        sourse_id: 'atlas_da1'
+        message_id: '2'
+      DA31:
+        name: DA 3 type 1
+        sourse_id: 'atlas_da3'
+        message_id: '1'
+      DA32:
+        name: DA 3 type 2 
+        sourse_id: 'atlas_da3'
+        message_id: '2'
+      is_on: true
+    Time_table:
+      is_on: false
+      def_time_limit: 20
+    background_color: '#888888'
+    colors:
+    - '#0000FF'
+    - '#FF0000'
+    - '#FFFF00'
+    position:
+    - 0
+    - 2
+    - 1
+    - 1
+  GraphWidget:
+    Graph:
+      Temperature:
+        Packets:
+          MA1:
+            sourse_id: 'atlas_ma'
+            message_id: '1'
+            field_id: 
+            - temp   
+            color:
+            - '#FF4646'
+          DA21:
+            sourse_id: 'atlas_da2'
+            message_id: '1'
+            field_id: 
+            - temp   
+            color:
+            - '#FFFF46'
+          DA11:
+            sourse_id: 'atlas_da1'
+            message_id: '1'
+            field_id: 
+            - temp   
+            color:
+            - '#FFFF46'
+          DA31:
+            sourse_id: 'atlas_da3'
+            message_id: '1'
+            field_id: 
+            - temp   
+            color:
+            - '#FFFF46'
+        legend_is_on: true
+        is_on: true
+        max_data_length: 100
+        name: Temperature
+        position:
+        - 0
+        - 1
+        - 1
+        - 1
+        units: dC
+      Temperature_ds18b20:
+        Packets:
+          MA1:
+            sourse_id: 'atlas_ma'
+            message_id: '1'
+            field_id: 
+            - ds_temp   
+            color:
+            - '#FF4646'
+        legend_is_on: true
+        is_on: true
+        max_data_length: 100
+        name: Temperature
+        position:
+        - 0
+        - 1
+        - 1
+        - 1
+        units: dC
+      Pressure:
+        Packets:
+          DA1:
+            sourse_id: 'atlas_da1'
+            message_id: 1
+            field_id:
+            - pres
+            color:
+            - '#FF4646'
+          DA2:
+            sourse_id: 'atlas_da2'
+            message_id: 1
+            field_id:
+            - pres
+            color:
+            - '#FF4646'
+          DA3:
+            sourse_id: 'atlas_da3'
+            message_id: 1
+            field_id:
+            - pres
+            color:
+            - '#FF4646'
+          MA1:
+            sourse_id: 'atlas_ma'
+            message_id: 1
+            field_id:
+            - pres
+            color:
+            - '#FF4646'
+        legend_is_on: false
+        is_on: true
+        max_data_length: 100
+        name: Pressure
+        position:
+        - 0
+        - 0
+        - 1
+        - 1
+        units: Pa
+      GPS_altitude:
+        Packets:
+          MA:
+            sourse_id: 'atlas_ma'
+            message_id: hei
+            field_id:
+            - alt
+            color:
+            - '#FF4646'
+          DA1:
+            sourse_id: 'atlas_da1'
+            message_id: hei
+            field_id:
+            - alt
+            color:
+            - '#FF4646'
+          DA2:
+            sourse_id: 'atlas_da2'
+            message_id: hei
+            field_id:
+            - alt
+            color:
+            - '#FF4646'
+          DA3:
+            sourse_id: 'atlas_da3'
+            message_id: hei
+            field_id:
+            - alt
+            color:
+            - '#FF4646'
+        name: GPS_altitude
+        legend_is_on: true
+        is_on: true
+        max_data_length: 100
+        position:
+        - 1
+        - 1
+        - 1
+        - 1
+        units: 'm'
+      DS18_Temperature:
+        Packets:
+          DS18:
+            sourse_id: 'monolit'
+            message_id: DS18
+            field_id:
+              - DS18Temp
+            color:
+              - '#FF4646'
+        name: DS18
+        legend_is_on: true
+        is_on: true
+        max_data_length: 100
+        position:
+        - 2
+        - 1
+        - 1
+        - 1
+        units: dC
+      Hum:
+        Packets:
+          DS18:
+            sourse_id: 'monolit'
+            message_id: DS18
+            field_id:
+              - DS18Temp
+            color:
+              - '#FF4646'
+        name: Hum
+        legend_is_on: true
+        is_on: true
+        max_data_length: 100
+        position:
+        - 2
+        - 1
+        - 1
+        - 1
+        units: %
+    is_on: true
+    position:
+    - 0
+    - 0
+    - 1
+    - 2
+    time_units: s
+  MapWidget:
+    center:
+    - 55.9
+    - 37.8
+    follow: true
+    is_on: false
+    max_data_length: 40
+    sourse_id: '11_0'
+    message_id: 'GPS_UBX_NAV_SOL'
+    field_lat_id: lat
+    field_lon_id: lon
+    position:
+    - 0
+    - 1
+    - 2
+    - 1
+    zoom: 4
+  ModelWidget:
+    Axis:
+      is_on: true
+      scale:
+      - 6.5
+      - 6.5
+      - 7
+      translate:
+      - 0
+      - 0
+      - -5
+    Camera:
+      azimuth: 0
+      distance: 470
+      elevation: 35
+      pan:
+      - 0
+      - 0
+      - 30
+    Grid:
+      is_on: true
+      scale:
+      - 3
+      - 3
+      - 3
+      translate:
+      - 0
+      - 0
+      - -10
+    Mesh:
+      Colors:
+        is_on: true
+        path: /media/sf_git/can-cube-sat/src/ground/laptop/source/models/CanCubeSat-for-GKS_color.mfcl
+      compute_normals: true
+      draw_edges: false
+      draw_faces: true
+      path: /media/sf_git/can-cube-sat/src/ground/laptop/source/models/CanCubeSat-for-GKS.stl
+      shader: edgeHilight
+      smooth: false
+    Scene:
+      Colors:
+        is_on: true
+        path: /media/sf_git/can-cube-sat/src/ground/laptop/source/models/axis.mfcl
+      compute_normals: true
+      draw_edges: false
+      draw_faces: true
+      is_on: true
+      path: /media/sf_git/can-cube-sat/src/ground/laptop/source/models/axis.stl
+      shader: balloon
+      smooth: false
+    background_color: '#323232'
+    is_on: false
+    sourse_id: '11_0'
+    message_id: 'SINS_ISC'
+    quat_field_id: 
+    - quaternion[0]
+    - quaternion[1]
+    - quaternion[2]
+    - quaternion[3]
+    position:
+    - 1
+    - 1
+    - 1
+    - 1
+  EventWidget:
+    Event:
+      SINS_UNDERTEMP_H:
+        name: cube 1 SINS overcooling threat
+        sourse_id: '11_0'
+        message_id: 'OWN_TEMPERATURE 2'
+        field_id: 
+        - TEMP
+        identifier: UnderRange
+        trigger_value: 35
+        index: 1
+        time_limit: 2
+        event_type: 'Error'
+        priority: 3
+        audio: 'D:\My_Programs\smartgit-portable-18_2_9\git\can-cube-sat-2021\src\ground\laptop\StrelA-MS\source\audio\alarm2.mp3'
+      SINS_UNDERTEMP_L:
+        name: cube 1 SINS overcooling
+        sourse_id: '11_0'
+        message_id: 'OWN_TEMPERATURE 2'
+        field_id: 
+        - TEMP
+        identifier: UnderRange
+        trigger_value: 40
+        index: 1
+        time_limit: 2
+        event_type: 'Warning'
+        priority: 2
+    background_color: '#888888'
+    attention_color: '#0000FF'
+    is_on: false
+    position:
+    - 0
+    - 3
+    - 1
+    - 1
+CurrentValues:
+  time_shift: 1601731871.944
+DefaultValues:
+  time_shift: false
+MainWindow:
+  DataSourse:
+    Log:
+      MAV:
+        log_path: ./log/T.mav
+        real_time: false
+        time_delay: 0.0005
+        notimestamps: true
+        packet_num_shift: 46300
+        packet_count: 0
+      type: MAV
+    MAVLink:
+      connection: udpin:0.0.0.0:14540
+      notimestamps: true
+    ZMQ:
+      bus_bpcs: "tcp://192.168.1.210:7778"
+      topics:
+      - "its.telemetry_packet"
+      - "radio.downlink_frame"
+      - 'radio.rssi_instant'
+      - 'radio.rssi_packet'
+      - 'radio.stats'
+      - "antenna.telemetry_packet"
+      notimestamps: true
+    ZMQ_MONOLIT:
+      bus_bpcs: "tcp://192.168.1.223:1234"
+    type: ZMQ_MONOLIT
+  size:
+  - 1000
+  - 800
+  update_time: 0.1
