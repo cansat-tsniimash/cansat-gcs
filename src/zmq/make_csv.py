@@ -130,6 +130,12 @@ class MsgProcessor:
                 self.bcu_electrical_time_steady_prevs[component] = corrected
                 msg_dict["time_steady"] = corrected
 
+        if self.time_launch is not None and "time_s" in msg_dict and "time_us" in msg_dict:
+            time_from_launch = msg_dict["time_s"] - self.time_launch
+            mins_from_launch = (time_from_launch + msg_dict["time_us"] / (1000 * 1000)) / 60
+            msg_dict["time_s_from_launch"] = time_from_launch
+            msg_dict["mins_from_launch"] = mins_from_launch
+
         if "time_steady" in msg_dict:
             left = self.time_steady_range[0]
             right = self.time_steady_range[1]
